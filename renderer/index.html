@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self'">
+<title>FARCIPAL Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="shake">
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Farcipal Launcher">
+      <svg class="mark" viewBox="-15 -15 30 30" aria-hidden="true">
+        <defs>
+          <linearGradient id="markStroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#eafff1" /><stop offset=".45" stop-color="#3dcf6f" /><stop offset="1" stop-color="#16562f" />
+          </linearGradient>
+        </defs>
+        <circle r="13.6" fill="#07090e" stroke="url(#markStroke)" stroke-width="1" />
+        <circle r="7" fill="none" stroke="#3dcf6f" stroke-opacity=".7" stroke-width=".9" />
+        <ellipse rx="2.2" ry="3.4" fill="#010203" stroke="#3dcf6f" stroke-width=".7" />
+      </svg>
+      <span class="brand-name">FARCIPAL</span>
+      <span class="brand-div" aria-hidden="true"></span>
+      <span class="brand-sub">launcher</span>
+    </a>
+    <div class="top-right">
+      <time class="clock" id="clock">00:00:00</time>
+      <span class="pill"><span class="dot" id="pillDot" data-s="idle"></span><span id="pillText">готов</span></span>
+      <div class="wbtns">
+        <button class="wbtn" id="wmin" type="button" aria-label="Свернуть"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+        <button class="wbtn close" id="wclose" type="button" aria-label="Закрыть"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <aside class="panel profile" aria-label="Профиль">
+      <div class="who">
+        <div class="avatar" id="avatar" aria-hidden="true">?</div>
+        <div class="who-text">
+          <div class="pname" id="pname">Гость</div>
+          <div class="psub" id="psub">демо-режим</div>
+        </div>
+      </div>
+      <button class="acct" id="acct" type="button"><span id="acctText">Войти через Microsoft</span></button>
+      <label class="field nick" id="nickWrap">
+        <span>Ник для демо</span>
+        <input id="q" type="text" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Steve_01">
+      </label>
+      <label class="field">
+        <span>Версия</span>
+        <select id="ver"><option>загрузка…</option></select>
+      </label>
+      <label class="check"><input id="snap" type="checkbox"> Показывать снапшоты</label>
+      <label class="field">
+        <span>Память <output id="ramOut">4 ГБ</output></span>
+        <input id="ram" type="range" min="1" max="16" step="1" value="4">
+      </label>
+      <label class="check" id="joinWrap"><input id="join" type="checkbox"> Заходить на сервер сразу</label>
+    </aside>
+
+    <section class="core" aria-label="Запуск">
+      <button class="play" id="play" type="button" data-s="idle"><span class="face"><span id="playText">ЗАПУСТИТЬ</span></span></button>
+      <div class="progress" id="progress" aria-hidden="true"><i></i></div>
+      <div class="status" role="status" aria-live="polite">
+        <span class="dot" id="statusDot" data-s="idle"></span>
+        <span id="statusText">готов</span>
+        <span class="timer" id="timer">00:00.000</span>
+      </div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <aside class="side" id="cards" aria-label="Новости"></aside>
+
+    <section class="panel term" aria-label="Журнал">
+      <p class="section-label">журнал</p>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <canvas id="web" aria-hidden="true"></canvas>
+
+  <div id="eyeLayer" aria-hidden="true">
+    <svg id="eye" viewBox="-130 -130 260 260">
+      <defs>
+        <radialGradient id="aura">
+          <stop offset=".6" style="stop-color:var(--ec)" stop-opacity=".14" />
+          <stop offset="1" style="stop-color:var(--ec)" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="flesh" cx="40%" cy="36%" r="75%">
+          <stop offset="0" stop-color="#2a2a38" /><stop offset=".55" stop-color="#171722" /><stop offset="1" stop-color="#07070c" />
+        </radialGradient>
+        <radialGradient id="irisFill" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#0a2716" /><stop offset="55%" stop-color="#071a0f" />
+          <stop offset="88%" stop-color="#040e08" /><stop offset="100%" stop-color="#020604" />
+        </radialGradient>
+        <clipPath id="ballClip"><circle r="92" /></clipPath>
+      </defs>
+
+      <circle r="128" fill="url(#aura)" />
+      <circle r="92" fill="url(#flesh)" />
+      <g id="blotches" clip-path="url(#ballClip)"></g>
+      <g clip-path="url(#ballClip)">
+        <g id="veinBase" class="veins"></g>
+        <g id="veinFlow" class="veins flow"></g>
+      </g>
+
+      <g clip-path="url(#ballClip)">
+        <g id="irisMove">
+          <circle r="52" fill="url(#irisFill)" />
+          <g id="fibA"></g><g id="fibB"></g><g id="fibC"></g>
+          <circle r="30" fill="none" stroke="#2a9a52" stroke-opacity=".16" stroke-width=".8" stroke-dasharray="1.5 3.5" />
+          <g id="sweepA"><circle r="45" fill="none" style="stroke:var(--ec)" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="26 260" /></g>
+          <g id="sweepB"><circle r="38" fill="none" style="stroke:var(--ec)" stroke-width=".8" stroke-linecap="round" stroke-dasharray="11 230" /></g>
+          <circle r="50.5" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="3" />
+          <circle r="52" fill="none" style="stroke:var(--ec)" stroke-opacity=".7" stroke-width=".9" />
+          <g id="pupilMove">
+            <ellipse id="pupil" rx="18" ry="18" fill="#010203" style="stroke:var(--ec)" stroke-opacity=".85" stroke-width="1.2" />
+          </g>
+        </g>
+        <g id="lidU"><path d="M -110 -200 H 110 V 0 Q 0 38 -110 0 Z" fill="#07070c" /><path d="M -110 0 Q 0 38 110 0" fill="none" style="stroke:var(--ec)" stroke-width="1.6" stroke-linecap="round" /></g>
+        <g id="lidL"><path d="M -110 200 H 110 V 0 Q 0 -38 -110 0 Z" fill="#07070c" /><path d="M -110 0 Q 0 -38 110 0" fill="none" style="stroke:var(--ec)" stroke-width="1.2" stroke-opacity=".8" stroke-linecap="round" /></g>
+      </g>
+
+      <ellipse id="spec" cx="-34" cy="-42" rx="9" ry="5.5" fill="#b4c8bb" opacity=".2" transform="rotate(-28 -34 -42)" />
+      <circle r="90" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="6" />
+      <circle r="92" fill="none" style="stroke:var(--ec)" stroke-opacity=".4" stroke-width="1.2" />
+      <g id="rings"></g>
+    </svg>
+  </div>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
+</div>
+
+<script src="companion.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
