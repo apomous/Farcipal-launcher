@@ -10,7 +10,7 @@
   const ram = $("ram"), ramOut = $("ramOut"), snap = $("snap"), join = $("join");
   const avatar = $("avatar"), pname = $("pname"), psub = $("psub"), nickWrap = $("nickWrap");
 
-  C.init({ play, progress, shake: $("shake") });
+  C.init({ play, progress, shake: $("shake"), targets: ".panel, .card, .play" });
 
   // ---------- часы ----------
   const tick = () => { const d = new Date(); $("clock").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };

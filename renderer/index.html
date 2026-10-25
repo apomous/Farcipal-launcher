@@ -87,52 +87,132 @@
   <canvas id="web" aria-hidden="true"></canvas>
 
   <div id="eyeLayer" aria-hidden="true">
-    <svg id="eye" viewBox="-130 -130 260 260">
-      <defs>
-        <radialGradient id="aura">
-          <stop offset=".6" style="stop-color:var(--ec)" stop-opacity=".14" />
-          <stop offset="1" style="stop-color:var(--ec)" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id="flesh" cx="40%" cy="36%" r="75%">
-          <stop offset="0" stop-color="#2a2a38" /><stop offset=".55" stop-color="#171722" /><stop offset="1" stop-color="#07070c" />
-        </radialGradient>
-        <radialGradient id="irisFill" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#0a2716" /><stop offset="55%" stop-color="#071a0f" />
-          <stop offset="88%" stop-color="#040e08" /><stop offset="100%" stop-color="#020604" />
-        </radialGradient>
-        <clipPath id="ballClip"><circle r="92" /></clipPath>
-      </defs>
+    <div id="eye">
 
-      <circle r="128" fill="url(#aura)" />
-      <circle r="92" fill="url(#flesh)" />
-      <g id="blotches" clip-path="url(#ballClip)"></g>
-      <g clip-path="url(#ballClip)">
-        <g id="veinBase" class="veins"></g>
-        <g id="veinFlow" class="veins flow"></g>
-      </g>
+      <!-- ТЕЛО: рисуется один раз (тяжёлые фильтры), дальше двигается как готовая картинка -->
+      <svg id="eyeBody" viewBox="-130 -130 260 260">
+        <defs>
+          <filter id="blur9" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9" /></filter>
+          <filter id="blur3" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5" /></filter>
+          <filter id="skin" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="4" seed="11" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" result="disp" />
+            <feDiffuseLighting in="n" surfaceScale="3.4" lighting-color="#ffffff" result="lit">
+              <feDistantLight azimuth="235" elevation="50" />
+            </feDiffuseLighting>
+            <feComposite in="lit" in2="disp" operator="in" result="litIn" />
+            <feBlend in="disp" in2="litIn" mode="multiply" />
+          </filter>
+          <radialGradient id="flesh" cx="36%" cy="32%" r="80%">
+            <stop offset="0" stop-color="#56566e" /><stop offset=".42" stop-color="#34344a" />
+            <stop offset=".78" stop-color="#1b1b27" /><stop offset="1" stop-color="#0b0b12" />
+          </radialGradient>
+          <clipPath id="ballClipB"><circle r="92" /></clipPath>
+          <clipPath id="veinClip"><circle r="94.8" /></clipPath>
+          <mask id="crescent" maskUnits="userSpaceOnUse" x="-100" y="-100" width="200" height="200">
+            <circle r="92" fill="#fff" />
+            <circle cx="-17" cy="-20" r="90" fill="#000" filter="url(#blur3)" />
+          </mask>
+        </defs>
+        <circle cx="0" cy="13" r="86" fill="#000" opacity=".62" filter="url(#blur9)" />
+        <circle r="92" fill="url(#flesh)" filter="url(#skin)" />
+        <g id="blotches" clip-path="url(#ballClipB)"></g>
+        <circle r="92" fill="#000" opacity=".5" mask="url(#crescent)" />
+        <circle r="92" fill="none" stroke="#050508" stroke-width="3.6" />
+        <g clip-path="url(#veinClip)"><g id="veinShadow" fill="#020204" opacity=".6"></g>
+        <g id="veinMain" fill="#228f48" opacity=".95"></g></g>
+        <g clip-path="url(#ballClipB)"><g id="veinHi" fill="#a8f0c2" opacity=".5"></g></g>
+      </svg>
 
-      <g clip-path="url(#ballClip)">
-        <g id="irisMove">
-          <circle r="52" fill="url(#irisFill)" />
-          <g id="fibA"></g><g id="fibB"></g><g id="fibC"></g>
-          <circle r="30" fill="none" stroke="#2a9a52" stroke-opacity=".16" stroke-width=".8" stroke-dasharray="1.5 3.5" />
-          <g id="sweepA"><circle r="45" fill="none" style="stroke:var(--ec)" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="26 260" /></g>
-          <g id="sweepB"><circle r="38" fill="none" style="stroke:var(--ec)" stroke-width=".8" stroke-linecap="round" stroke-dasharray="11 230" /></g>
-          <circle r="50.5" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="3" />
-          <circle r="52" fill="none" style="stroke:var(--ec)" stroke-opacity=".7" stroke-width=".9" />
-          <g id="pupilMove">
-            <ellipse id="pupil" rx="18" ry="18" fill="#010203" style="stroke:var(--ec)" stroke-opacity=".85" stroke-width="1.2" />
-          </g>
+      <!-- ЖИВОЙ СЛОЙ: радужка, зрачок, веки, блики. Меняется каждый кадр, фильтров нет -->
+      <svg id="eyeLive" viewBox="-130 -130 260 260">
+        <defs>
+          <clipPath id="clipBall"><circle r="90.6" /></clipPath>
+          <radialGradient id="aura">
+            <stop offset=".66" style="stop-color:var(--ec)" stop-opacity=".16" /><stop offset="1" style="stop-color:var(--ec)" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="irisFill" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#0c2d19" /><stop offset="55%" stop-color="#071d10" />
+            <stop offset="88%" stop-color="#040f08" /><stop offset="100%" stop-color="#020604" />
+          </radialGradient>
+          <radialGradient id="irisRecess" cx="60%" cy="62%" r="72%">
+            <stop offset=".52" stop-color="#000" stop-opacity="0" /><stop offset="1" stop-color="#000" stop-opacity=".88" />
+          </radialGradient>
+          <radialGradient id="pupilShade">
+            <stop offset=".35" stop-color="#000" stop-opacity=".9" /><stop offset="1" stop-color="#000" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="vignette" cx="38%" cy="34%" r="72%">
+            <stop offset=".5" stop-color="#000" stop-opacity="0" /><stop offset=".82" stop-color="#000" stop-opacity=".38" />
+            <stop offset="1" stop-color="#000" stop-opacity=".82" />
+          </radialGradient>
+          <radialGradient id="specBig">
+            <stop offset="0" stop-color="#eaffef" stop-opacity=".42" /><stop offset=".55" stop-color="#cfffe0" stop-opacity=".14" />
+            <stop offset="1" stop-color="#cfffe0" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="rimLight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset=".4" style="stop-color:var(--ec)" stop-opacity="0" /><stop offset="1" style="stop-color:var(--ec)" stop-opacity=".75" />
+          </linearGradient>
+          <linearGradient id="lidUg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0c0c12" /><stop offset=".7" stop-color="#1c1c28" /><stop offset="1" stop-color="#34344a" />
+          </linearGradient>
+          <linearGradient id="lidLg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3c3c52" /><stop offset=".35" stop-color="#22222f" /><stop offset="1" stop-color="#0b0b11" />
+          </linearGradient>
+          <linearGradient id="bandU" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#000" stop-opacity=".66" /><stop offset="1" stop-color="#000" stop-opacity="0" />
+          </linearGradient>
+          <linearGradient id="bandL" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#000" stop-opacity=".6" /><stop offset="1" stop-color="#000" stop-opacity="0" />
+          </linearGradient>
+          <path id="edgeU" fill="none" stroke-linecap="round" />
+          <path id="edgeL" fill="none" stroke-linecap="round" />
+        </defs>
+
+        <circle r="128" fill="url(#aura)" />
+        <g clip-path="url(#clipBall)">
+          <g id="veinFlow"></g>
+          <circle id="tint" r="92" style="fill:var(--ec)" opacity="0" />
+
+          <g id="irisMove"><g transform="scale(0.84)">
+            <circle r="52" fill="url(#irisFill)" />
+            <g id="fibA"></g><g id="fibB"></g><g id="fibC"></g>
+            <circle r="30" fill="none" stroke="#2a9a52" stroke-opacity=".16" stroke-width=".8" stroke-dasharray="1.5 3.5" />
+            <g id="sweepA"><circle r="45" fill="none" style="stroke:var(--ec)" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="26 260" /></g>
+            <g id="sweepB"><circle r="38" fill="none" style="stroke:var(--ec)" stroke-width=".8" stroke-linecap="round" stroke-dasharray="11 230" /></g>
+            <circle r="52" fill="url(#irisRecess)" />
+            <path d="M 39.6 24.5 A 46.5 46.5 0 0 1 -6 46.1" fill="none" stroke="#b4ffd0" stroke-opacity=".3" stroke-width="2.2" stroke-linecap="round" />
+            <circle r="50.4" fill="none" stroke="#000" stroke-opacity=".7" stroke-width="3.2" />
+            <circle r="52" fill="none" style="stroke:var(--ec)" stroke-opacity=".75" stroke-width=".9" />
+            <g id="pupilMove">
+              <ellipse id="pupilShade" rx="31" ry="31" fill="url(#pupilShade)" />
+              <ellipse id="pupil" rx="21" ry="21" fill="#010203" style="stroke:var(--ec)" stroke-opacity=".9" stroke-width="1.3" />
+              <circle id="pupilGlint" cx="-6" cy="-7" r="2.7" fill="#fff" opacity=".6" />
+            </g>
+          </g></g>
+
+          <!-- веки: форма пересчитывается каждый кадр -->
+          <path id="bandUp" fill="url(#bandU)" />
+          <path id="bandLo" fill="url(#bandL)" />
+          <path id="fillUp" fill="url(#lidUg)" />
+          <path id="fillLo" fill="url(#lidLg)" />
+          <use href="#edgeU" transform="translate(0 4.5)" style="stroke:var(--ec)" stroke-opacity=".2" stroke-width="6" />
+          <use href="#edgeL" transform="translate(0 -4.5)" style="stroke:var(--ec)" stroke-opacity=".16" stroke-width="5" />
+          <use href="#edgeU" stroke="#454559" stroke-width="7.4" />
+          <use href="#edgeL" stroke="#3b3b4e" stroke-width="7" />
+          <use href="#edgeU" transform="translate(0 -1.9)" stroke="#9494b0" stroke-opacity=".5" stroke-width="1.6" />
+          <use href="#edgeL" transform="translate(0 -1.9)" stroke="#8a8aa6" stroke-opacity=".38" stroke-width="1.4" />
+          <use href="#edgeU" transform="translate(0 3.8)" style="stroke:var(--ec)" stroke-opacity=".95" stroke-width="1.4" />
+          <use href="#edgeL" transform="translate(0 -3.6)" style="stroke:var(--ec)" stroke-opacity=".8" stroke-width="1.2" />
         </g>
-        <g id="lidU"><path d="M -110 -200 H 110 V 0 Q 0 38 -110 0 Z" fill="#07070c" /><path d="M -110 0 Q 0 38 110 0" fill="none" style="stroke:var(--ec)" stroke-width="1.6" stroke-linecap="round" /></g>
-        <g id="lidL"><path d="M -110 200 H 110 V 0 Q 0 -38 -110 0 Z" fill="#07070c" /><path d="M -110 0 Q 0 -38 110 0" fill="none" style="stroke:var(--ec)" stroke-width="1.2" stroke-opacity=".8" stroke-linecap="round" /></g>
-      </g>
 
-      <ellipse id="spec" cx="-34" cy="-42" rx="9" ry="5.5" fill="#b4c8bb" opacity=".2" transform="rotate(-28 -34 -42)" />
-      <circle r="90" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="6" />
-      <circle r="92" fill="none" style="stroke:var(--ec)" stroke-opacity=".4" stroke-width="1.2" />
-      <g id="rings"></g>
-    </svg>
+        <circle r="91" fill="url(#vignette)" />
+        <circle r="90.6" fill="none" stroke="url(#rimLight)" stroke-width="1.8" />
+        <ellipse cx="-33" cy="-45" rx="34" ry="19" fill="url(#specBig)" transform="rotate(-32 -33 -45)" />
+        <ellipse cx="-44" cy="-55" rx="8.5" ry="4.4" fill="#f2fff6" opacity=".7" transform="rotate(-32 -44 -55)" />
+        <circle cx="-30" cy="-60" r="1.9" fill="#fff" opacity=".6" />
+        <g id="rings"></g>
+      </svg>
+    </div>
   </div>
 
   <canvas id="fx" aria-hidden="true"></canvas>

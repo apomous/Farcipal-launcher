@@ -12,7 +12,8 @@ npm run dist       # собрать portable .exe в папку dist/
 
 ## Что внутри
 - `main.js`: окно, список версий Mojang, вход через Microsoft (msmc), запуск (minecraft-launcher-core).
-- `renderer/companion.js`: глаз, паутина, рывок по кнопке. API: `Companion.slam()`, `Companion.phase('idle'|'loading'|'running'|'error')`.
+- `renderer/companion.js`: глаз, живая сеть нитей (класс `Thread`), рывок по кнопке. API: `Companion.slam()`, `Companion.phase('idle'|'loading'|'running'|'error')`.
+  Элементы, за которые цепляется сеть, задаются селектором в `app.js` (`targets: ".panel, .card, .play"`).
 - `config.js`: сервер для автозахода, новости, папка игры.
 
 ## Вход и демо

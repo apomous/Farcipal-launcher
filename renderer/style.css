@@ -64,8 +64,7 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
   grid-template-rows: minmax(0, 1fr) 150px; gap: 18px; padding: 70px 26px 22px;
 }
 .panel {
-  background: rgba(15, 15, 24, .62); border: 1px solid var(--line); border-radius: 14px;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: rgba(14, 14, 22, .86); border: 1px solid var(--line); border-radius: 14px;
 }
 .profile { grid-column: 1; grid-row: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .core { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 70px; min-width: 0; }
@@ -163,8 +162,8 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 .card {
   position: relative; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px;
   padding: 16px 18px 16px 22px; border-radius: 14px;
-  background: rgba(15, 15, 24, .66); border: 1px solid var(--line); overflow: hidden;
-  backdrop-filter: blur(10px); transition: border-color .3s, box-shadow .3s;
+  background: rgba(14, 14, 22, .88); border: 1px solid var(--line); overflow: hidden;
+  transition: border-color .3s, box-shadow .3s;
 }
 .card:hover { border-color: rgba(255,255,255,.13); box-shadow: 0 0 30px rgba(61,207,111,.08); }
 .card::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 2px; background: var(--c); box-shadow: 0 0 12px var(--c); }
@@ -194,21 +193,15 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 #web { z-index: 3; }
 #fx { z-index: 5; }
 #eyeLayer { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
-#eye { position: absolute; left: 0; top: 0; width: 175.2px; height: 175.2px; overflow: visible; will-change: transform; }
-
-/* вены: фон + бегущий свет */
-.veins path { fill: none; stroke-linecap: round; }
-#veinBase path { stroke: var(--ec); stroke-opacity: .5; }
-#veinFlow path {
-  stroke: #d6ffe4; stroke-opacity: .85; stroke-dasharray: 7 80;
-  animation: vflow 3.4s linear infinite;
-}
-@keyframes vflow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -87; } }
+#eye { position: absolute; left: 0; top: 0; will-change: transform; }
+#eye svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; display: block; }
+#eyeBody { will-change: transform; }
+#veinFlow path { fill: none; stroke: #e8fff0; stroke-opacity: .8; stroke-linecap: round; stroke-dasharray: 5 70; }
 
 @media (max-width: 980px) {
   .stage { grid-template-columns: 240px 1fr; }
   .side { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #veinFlow path, .progress.on i, .dot[data-s="scanning"] { animation: none; }
+  .progress.on i, .dot[data-s="scanning"] { animation: none; }
 }
