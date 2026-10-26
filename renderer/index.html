@@ -95,29 +95,35 @@
           <filter id="blur9" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9" /></filter>
           <filter id="blurS" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="0.8" /></filter>
           <filter id="skinA" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="7" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" result="disp" />
-            <feDiffuseLighting in="n" surfaceScale="3.6" lighting-color="#ffffff" result="lit">
-              <feDistantLight azimuth="235" elevation="52" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="4" seed="7" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G" result="disp" />
+            <feDiffuseLighting in="n" surfaceScale="2.6" lighting-color="#ffffff" result="lit">
+              <feDistantLight azimuth="235" elevation="55" />
             </feDiffuseLighting>
             <feComposite in="lit" in2="disp" operator="in" result="litIn" />
             <feBlend in="disp" in2="litIn" mode="multiply" />
           </filter>
-          <radialGradient id="massSheen"><stop offset="0" stop-color="#e8f2ee" stop-opacity=".2" /><stop offset="1" stop-color="#e8f2ee" stop-opacity="0" /></radialGradient>
-          <radialGradient id="massFill" cx="48%" cy="44%" r="62%">
-            <stop offset="0" stop-color="#3f4546" /><stop offset=".4" stop-color="#262a2b" />
-            <stop offset=".76" stop-color="#111314" /><stop offset="1" stop-color="#040505" />
+          <radialGradient id="massFill" cx="35%" cy="30%" r="84%">
+            <stop offset="0" stop-color="#525a5b" /><stop offset=".36" stop-color="#2d3233" />
+            <stop offset=".7" stop-color="#121516" /><stop offset="1" stop-color="#030404" />
           </radialGradient>
+          <radialGradient id="massSheen"><stop offset="0" stop-color="#eef6f2" stop-opacity=".2" /><stop offset="1" stop-color="#eef6f2" stop-opacity="0" /></radialGradient>
           <linearGradient id="rimGreen" x1="0" y1="0" x2="1" y2="1">
-            <stop offset=".35" stop-color="#3dcf6f" stop-opacity="0" /><stop offset="1" stop-color="#3dcf6f" stop-opacity=".6" />
+            <stop offset=".3" stop-color="#3dcf6f" stop-opacity="0" /><stop offset="1" stop-color="#3dcf6f" stop-opacity=".7" />
           </linearGradient>
+          <clipPath id="massClip"><path id="massClipPath" /></clipPath>
         </defs>
-        <ellipse cx="0" cy="38" rx="88" ry="68" fill="#000" opacity=".78" filter="url(#blur9)" />
-        <path id="massShape" fill="url(#massFill)" filter="url(#skinA)" />
-        <g id="massDetail"></g>
-        <ellipse cx="-44" cy="-64" rx="52" ry="26" fill="url(#massSheen)" transform="rotate(-24 -44 -64)" />
-        <ellipse cx="38" cy="70" rx="46" ry="14" fill="url(#massSheen)" opacity=".5" transform="rotate(-12 38 70)" />
-        <path id="massRim" fill="none" stroke="url(#rimGreen)" stroke-width="1.5" />
+        <ellipse cx="0" cy="40" rx="86" ry="66" fill="#000" opacity=".78" filter="url(#blur9)" />
+        <path id="massShape" fill="url(#massFill)" />
+        <g clip-path="url(#massClip)">
+          <path id="massTex" fill="url(#massFill)" filter="url(#skinA)" />
+          <g id="massDetail"></g>
+          <ellipse cx="-42" cy="-62" rx="54" ry="26" fill="url(#massSheen)" transform="rotate(-26 -42 -62)" />
+          <ellipse cx="40" cy="72" rx="48" ry="13" fill="url(#massSheen)" opacity=".45" transform="rotate(-10 40 72)" />
+        </g>
+        <path id="massEdge" fill="none" stroke="#000" stroke-opacity=".8" stroke-width="1.9" />
+        <path id="massRim" fill="none" stroke="url(#rimGreen)" stroke-width="1.6" />
+        <path id="massGloss" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="1.5" stroke-linecap="round" />
       </svg>
 
       <!-- 2. ГЛАЗНОЕ ЯБЛОКО: видно только в проёме между веками. Текстура едет вместе со взглядом -->
@@ -194,6 +200,16 @@
         </defs>
 
         <circle r="128" fill="url(#aura)" />
+
+        <!-- неоновые прожилки на плоти: энергия течёт к корням -->
+        <g id="surf" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path id="svGlow" style="stroke:var(--ec)" stroke-opacity=".12" stroke-width="3.6" />
+          <path id="svCore" style="stroke:var(--ec)" stroke-opacity=".72" stroke-width="1" />
+          <path id="svArc" style="stroke:var(--ec)" stroke-opacity=".32" stroke-width=".7" stroke-dasharray="2 5" />
+          <path id="svP0" stroke="#d8ffe6" stroke-opacity=".85" stroke-width="1.3" stroke-dasharray="4 70" />
+          <path id="svP1" stroke="#d8ffe6" stroke-opacity=".75" stroke-width="1.3" stroke-dasharray="4 96" />
+          <path id="svP2" stroke="#d8ffe6" stroke-opacity=".8" stroke-width="1.3" stroke-dasharray="4 58" />
+        </g>
 
         <g clip-path="url(#apClip)">
           <circle id="tint" r="124" style="fill:var(--ec)" opacity="0" />

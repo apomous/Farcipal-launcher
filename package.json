@@ -29,8 +29,7 @@
     "win": {
       "target": [
         "portable"
-      ],
-      "icon": "icon.ico"
+      ]
     }
   }
 }

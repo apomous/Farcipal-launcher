@@ -24,10 +24,12 @@
   const f1 = (v) => v.toFixed(1);
 
   const COLORS = { green: [61, 207, 111], amber: [232, 180, 90], red: [248, 113, 113] };
+  const NRT = 8, NRP = 10;
+  const ROOT_TH = Array.from({ length: NRT }, (_, i) => (-12 + (204 * i) / (NRT - 1)) * Math.PI / 180);   // от правого бока вниз до левого
   const FLESH_GREEN = [24, 96, 54];
 
   // геометрия: радиус белка в px и в юнитах SVG
-  const R = 68, MASS = 102, IRIS = 52, PUPIL = 21, IRIS_K = 0.78, IRIS_E = IRIS * IRIS_K;
+  const R = 50, MASS = 102, IRIS = 52, PUPIL = 21, IRIS_K = 0.78, IRIS_E = IRIS * IRIS_K;
   const SVG_PX = (260 / MASS) * R, HALF = SVG_PX / 2, UNIT = SVG_PX / 260;
 
   // ---------- состояние ----------
@@ -52,7 +54,7 @@
 
   // ---------- сборка SVG ----------
   let fib = [], sweepA, sweepB, irisMove, pupilMove, pupil, pupilShade, pupilGlow, pupilGlint, tint, corneaEl;
-  let edgeU, edgeL, apPath, ballEl, ballWrap, lidFx;
+  let edgeU, edgeL, apPath, ballEl, ballWrap, lidFx, svP = [];
 
   const sampleQ = (p0, p1, p2, n) => {
     const out = [];
@@ -114,36 +116,66 @@
     sweepA = $("sweepA"); sweepB = $("sweepB");
     fib = [$("fibA"), $("fibB"), $("fibC")];
 
-    // ---- плоть: неидеальная, чуть яйцевидная, тяжелее снизу
-    const ph = [rnd(0, 6.28), rnd(0, 6.28), rnd(0, 6.28), rnd(0, 6.28)], mp = [];
-    for (let i = 0; i < 64; i++) {
-      const th = (i / 64) * Math.PI * 2;
-      const r = 101 + 4.6 * Math.sin(2 * th + ph[0]) + 3.2 * Math.sin(3 * th + ph[1]) + 2 * Math.sin(5 * th + ph[2]) + 1.1 * Math.sin(9 * th + ph[3]) + 5 * Math.max(0, Math.sin(th));
-      mp.push({ x: Math.cos(th) * r, y: Math.sin(th) * r * 0.96 });
+    // ---- плоть: чистое яйцо, чуть уже книзу (там корни), едва заметная неправильность
+    const ph = [rnd(0, 6.28), rnd(0, 6.28)], mp = [], gl = [];
+    for (let i = 0; i < 72; i++) {
+      const th = (i / 72) * Math.PI * 2, sn = Math.sin(th), r = 1 + 0.011 * Math.sin(2 * th + ph[0]) + 0.007 * Math.sin(3 * th + ph[1]);
+      const p = { x: Math.cos(th) * 99 * r * (1 - 0.1 * Math.max(0, sn)), y: sn * 101 * r };
+      mp.push(p);
+      const deg = (th * 180) / Math.PI;
+      if (deg > 196 && deg < 262) gl.push({ x: p.x * 0.968, y: p.y * 0.968 });
     }
     const massD = closedBlob(mp);
-    $("massShape").setAttribute("d", massD); $("massRim").setAttribute("d", massD);
+    ["massShape", "massTex", "massClipPath", "massEdge", "massRim"].forEach((id) => $(id).setAttribute("d", massD));
+    $("massGloss").setAttribute("d", smoothPath(gl, true, 1, 0));
     const md = $("massDetail");
-    for (let i = 0; i < 16; i++) {
-      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 96, cx = Math.cos(a) * d, cy = Math.sin(a) * d;
-      mk(md, "ellipse", { cx: f1(cx), cy: f1(cy), rx: f1(rnd(8, 22)), ry: f1(rnd(5, 15)), transform: `rotate(${rnd(0, 180) | 0} ${f1(cx)} ${f1(cy)})`, fill: Math.random() < 0.5 ? "#6a7576" : "#000", opacity: rnd(0.06, 0.16).toFixed(2) });
-    }
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 70; i++) {
       const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 98;
-      mk(md, "circle", { cx: f1(Math.cos(a) * d), cy: f1(Math.sin(a) * d), r: f1(rnd(0.5, 1.5)), fill: "#000", opacity: rnd(0.2, 0.5).toFixed(2) });
+      mk(md, "circle", { cx: f1(Math.cos(a) * d), cy: f1(Math.sin(a) * d), r: f1(rnd(0.5, 1.3)), fill: "#000", opacity: rnd(0.16, 0.4).toFixed(2) });
     }
-    // складки кожи: тёмная линия + светлая рядом (рельеф)
-    const folds = [
-      "M -86 -26 Q -60 -80 0 -86 Q 60 -80 86 -26", "M -80 -40 Q -48 -88 0 -92 Q 48 -88 80 -40",
-      "M -80 28 Q -44 84 0 88 Q 44 84 80 28", "M -68 38 Q -34 92 0 96 Q 34 92 68 38",
-      "M -86 6 Q -100 -2 -110 -15", "M -86 10 Q -102 15 -112 27", "M -84 14 Q -96 30 -102 44", "M -86 0 Q -98 -16 -102 -32",
-      "M 86 0 Q 100 -6 110 -18", "M 86 6 Q 102 12 112 24", "M 84 12 Q 96 28 100 42", "M 86 -4 Q 98 -20 100 -36"
-    ];
     const fg = mk(md, "g", { filter: "url(#blurS)" });
-    folds.forEach((d) => {
-      mk(fg, "path", { d, fill: "none", stroke: "#000", "stroke-opacity": ".4", "stroke-width": f1(rnd(1.6, 3)), "stroke-linecap": "round" });
-      mk(fg, "path", { d, fill: "none", stroke: "#7e8a89", "stroke-opacity": ".15", "stroke-width": "1.2", "stroke-linecap": "round", transform: "translate(1 1.6)" });
+    ["M -86 -26 Q -60 -80 0 -86 Q 60 -80 86 -26", "M -80 28 Q -44 84 0 88 Q 44 84 80 28"].forEach((d) => {
+      mk(fg, "path", { d, fill: "none", stroke: "#000", "stroke-opacity": ".34", "stroke-width": "2", "stroke-linecap": "round" });
+      mk(fg, "path", { d, fill: "none", stroke: "#8a9896", "stroke-opacity": ".12", "stroke-width": "1.1", "stroke-linecap": "round", transform: "translate(1 1.6)" });
     });
+
+    // ---- неоновые прожилки на плоти: дуги вокруг проёма, перемычки и «хвосты» к корням (как схема, но живая)
+    const dG = [], dP = ["", "", ""];
+    const addV = (pts, pulse) => { const d = smoothPath(pts, true, 1, 0); dG.push(d); if (pulse) dP[(Math.random() * 3) | 0] += d; };
+    const ell = (a0, a1, rx, ry, n, amp) => {
+      const o = [], ph2 = rnd(0, 6.28);
+      for (let i = 0; i < n; i++) { const t = (lerp(a0, a1, i / (n - 1)) * Math.PI) / 180, w = amp * Math.sin(i * 0.9 + ph2); o.push({ x: Math.cos(t) * (rx + w), y: 6 + Math.sin(t) * (ry + w) }); }
+      return o;
+    };
+    const bands = [[206, 334, [[84, 78], [88, 86], [91.5, 94]]], [28, 152, [[82, 71], [86.5, 80], [90, 90]]]];
+    bands.forEach(([a0, a1, arcs]) => {
+      const lines = arcs.map(([rx, ry], k) => { const pts = ell(a0 + k * 2, a1 - k * 2, rx, ry, 22, 1.4); addV(pts, k === 1); return pts; });
+      for (let k = 0; k < lines.length - 1; k++) {                        // перемычки между дугами
+        const cnt = 4 + ((Math.random() * 3) | 0);
+        for (let j = 0; j < cnt; j++) { const i = 2 + ((Math.random() * 17) | 0); addV([lines[k][i], lines[k + 1][Math.min(21, i + ((Math.random() * 3) | 0) - 1)]], false); }
+      }
+    });
+    // хвосты из углов проёма: вверх к краю и вниз к корням
+    [-1, 1].forEach((sd) => {
+      const c0 = { x: sd * 86, y: sd < 0 ? 9 : -2 };
+      addV(sampleC(c0, { x: sd * 94, y: c0.y - 12 }, { x: sd * 94, y: c0.y - 32 }, { x: sd * 82, y: -58 }, 14), true);
+      addV(sampleC(c0, { x: sd * 95, y: c0.y + 10 }, { x: sd * 92, y: c0.y + 30 }, { x: sd * 76, y: 62 }, 14), true);
+    });
+    // нижние дуги стекаются в корни
+    ROOT_TH.forEach((th) => {
+      const t0 = { x: Math.cos(th) * 88, y: 6 + Math.sin(th) * 86 }, t1 = { x: Math.cos(th) * 82, y: Math.sin(th) * 82 * 0.96 };
+      if (Math.sin(th) > 0.1) addV([t0, { x: (t0.x + t1.x) / 2 + rnd(-2, 2), y: (t0.y + t1.y) / 2 }, t1], true);
+    });
+    // короткие ответвления к кромке
+    for (let i = 0; i < 12; i++) {
+      const a = rnd(0, 6.28), p = { x: Math.cos(a) * 91, y: 6 + Math.sin(a) * 90 };
+      if (Math.abs(p.x) < 79 && p.y > -66 && p.y < 62) continue;
+      const l = rnd(5, 10); addV([p, { x: p.x + Math.cos(a + rnd(-0.5, 0.5)) * l, y: p.y + Math.sin(a + rnd(-0.5, 0.5)) * l * 0.9 }], false);
+    }
+    $("svGlow").setAttribute("d", dG.join("")); $("svCore").setAttribute("d", dG.join(""));
+    $("svArc").setAttribute("d", "M0 0");
+    svP = [$("svP0"), $("svP1"), $("svP2")];
+    svP.forEach((p, i) => p.setAttribute("d", dP[i] || "M0 0"));
 
     // ---- глазное яблоко: текстура с запасом, чтобы при повороте не было пустых мест
     const bl = $("ballBlotches");
@@ -472,6 +504,7 @@
       this.ph = rnd(0, 6.28); this.sway = rnd(0.55, 1);
       this.state = "wait"; this.wait = isKid ? 0 : rnd(0.05, 1.6);
       this.parent = null;
+      this.rootIdx = isKid ? 0 : Math.min(NRT - 1, Math.floor((i * NRT) / NMAIN));
       this.reset();
     }
     reset() {
@@ -483,8 +516,13 @@
     }
     get alive() { return this.state === "grow" || this.state === "live"; }
 
-    spawn(quick) {
+    spawn(quick, D) {
       this.reset();
+      if (D) {               // лапка выбирает корень, смотрящий в сторону цели
+        const ta = Math.atan2(D.y - eye.y, D.x - eye.x); let best = 0, bd = 9;
+        roots.forEach((r, j) => { const d = Math.abs(angDiff(ta, r.a0)) + Math.random() * 0.15; if (d < bd) { bd = d; best = j; } });
+        this.rootIdx = best;
+      } else this.rootIdx = (Math.random() * NRT) | 0;
       this.state = "grow";
       this.growDur = quick ? 0.4 : rnd(0.9, 1.6);
       this.life = rnd(4.5, 9.5);
@@ -520,7 +558,7 @@
         this.wait -= dt;
         if (!this.isKid && this.wait <= 0 && mode !== "error") {
           const legOn = this.leg >= 0 && E.engaged[this.leg] && E.want && E.legD[this.leg];
-          if (legOn) this.spawn(true);
+          if (legOn) this.spawn(true, E.legD[this.leg]);
           else if (this.i < E.activeMax) this.spawn(false);
         }
         return;
@@ -534,11 +572,10 @@
         const ri = Math.min(this.ri, pp.n - 2), a = pp.pts[ri], b = pp.pts[ri + 1], c = pp.pts[Math.max(0, ri - 1)];
         rx = a.x; ry = a.y; dirAng = Math.atan2(b.y - c.y, b.x - c.x) + this.rel;
       } else {
-        let phi = eye.base + this.off;
-        if (this.leg >= 0 && E.engaged[this.leg] && E.want && E.legD[this.leg]) phi = Math.atan2(E.legD[this.leg].y - eye.y, E.legD[this.leg].x - eye.x);
-        this.phi = phi;
-        rx = eye.x + Math.cos(phi) * E.rr; ry = eye.y + Math.sin(phi) * E.rr;
-        dirAng = phi + 0.6 * nz(time * 0.35 + this.ph);
+        const rt = roots[this.rootIdx], tp = rt.pts[NRP - 1];
+        rx = tp.x; ry = tp.y;                      // нить прорастает из кончика мясистого корня
+        const D = this.leg >= 0 && E.engaged[this.leg] && E.want ? E.legD[this.leg] : null;
+        dirAng = D ? Math.atan2(D.y - ry, D.x - rx) : rt.tipAng + this.off * 0.4 + 0.5 * nz(time * 0.35 + this.ph);
       }
       const pts = this.pts, Lb = this.L * E.sc;
       if (this.fresh) { pts.forEach((p) => { p.x = p.px = rx; p.y = p.py = ry; }); this.Lc = Lb; this.fresh = false; }
@@ -719,9 +756,87 @@
     }
   }
 
+  // ---------- мясистые корни у основания глаза ----------
+  const roots = ROOT_TH.map((th, i) => {
+    const side = Math.cos(th);
+    return {
+      th, i, len: rnd(46, 72), w0: rnd(11, 14.5), ph: rnd(0, 6.28), tipAng: Math.PI / 2, init: false,
+      a0: Math.atan2(Math.sin(th) * 0.55 + 0.75, side * 0.9),
+      curl: (Math.abs(side) > 0.25 ? -Math.sign(side) : (i % 2 ? 1 : -1)) * rnd(1.2, 2.0),   // кончики загибаются наружу, как в Don't Starve
+      pts: Array.from({ length: NRP }, () => ({ x: 0, y: 0, px: 0, py: 0 }))
+    };
+  });
+  function rootRest(r, out) {
+    const sc = cur.sc, base = R * 0.8 * sc, Lr = (r.len * sc) / (NRP - 1);
+    let x = eye.x + Math.cos(r.th) * base, y = eye.y + Math.sin(r.th) * base * 0.96;
+    out[0] = { x, y };
+    for (let k = 1; k < NRP; k++) {
+      const s = k / (NRP - 1), g = smooth01(clamp((s - 0.4) / 0.6, 0, 1));
+      const ang = r.a0 + r.curl * Math.pow(g, 1.4) + 0.14 * Math.sin(time * 0.9 + r.ph + k * 0.5) * s;
+      x += Math.cos(ang) * Lr; y += Math.sin(ang) * Lr;
+      out[k] = { x, y };
+    }
+    return Lr;
+  }
+  const restTmp = Array.from({ length: NRP }, () => ({ x: 0, y: 0 }));
+  function updateRoots(dt) {
+    const asleep = mode === "sleep", dt2 = dt * dt;
+    for (const r of roots) {
+      const Lr = rootRest(r, restTmp), pts = r.pts;
+      if (!r.init) { for (let k = 0; k < NRP; k++) { pts[k].x = pts[k].px = restTmp[k].x; pts[k].y = pts[k].py = restTmp[k].y; } r.init = true; }
+      pts[0].x = pts[0].px = restTmp[0].x; pts[0].y = pts[0].py = restTmp[0].y;
+      for (let k = 1; k < NRP; k++) {
+        const p = pts[k], K = asleep ? 30 : 62;
+        const vx = (p.x - p.px) * 0.9, vy = (p.y - p.py) * 0.9;
+        p.px = p.x; p.py = p.y;
+        p.x += vx + (restTmp[k].x - p.x) * K * dt2; p.y += vy + ((restTmp[k].y - p.y) * K + 60) * dt2;
+      }
+      for (let it = 0; it < 3; it++) for (let k = 0; k < NRP - 1; k++) {
+        const a = pts[k], b = pts[k + 1], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.0001, diff = (d - Lr) / d, wa = k === 0 ? 0 : 0.5, tw = wa + 0.5;
+        a.x += dx * diff * (wa / tw); a.y += dy * diff * (wa / tw); b.x -= dx * diff * (0.5 / tw); b.y -= dy * diff * (0.5 / tw);
+      }
+      r.tipAng = Math.atan2(pts[NRP - 1].y - pts[NRP - 2].y, pts[NRP - 1].x - pts[NRP - 2].x);
+    }
+  }
+  function drawRoots() {
+    const ctx = ctxW, sc = cur.sc, vis = cur.vis, fl = flash;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (const r of roots) {
+      const pts = r.pts, w0 = r.w0 * sc, wAt = (k) => w0 * Math.pow(1 - k / (NRP - 1), 0.85) + 2.2 * sc;
+      ctx.globalCompositeOperation = "source-over";
+      for (let pass = 0; pass < 3; pass++) {
+        for (let k = 0; k < NRP - 1; k++) {
+          const a = pts[k], b = pts[k + 1], w = (wAt(k) + wAt(k + 1)) / 2, f = k / (NRP - 1);
+          let ox = 0, oy = 0;
+          if (pass === 0) { ctx.strokeStyle = `rgba(1,3,3,${0.92 * vis})`; ctx.lineWidth = w + 3; }
+          else if (pass === 1) { ctx.strokeStyle = `rgba(${lerp(54, 22, f) | 0},${lerp(62, 28, f) | 0},${lerp(63, 29, f) | 0},${vis})`; ctx.lineWidth = w; }
+          else { ctx.strokeStyle = `rgba(160,178,172,${0.22 * vis})`; ctx.lineWidth = w * 0.3; ox = -w * 0.2; oy = -w * 0.22; }
+          ctx.beginPath(); ctx.moveTo(a.x + ox, a.y + oy); ctx.lineTo(b.x + ox, b.y + oy); ctx.stroke();
+        }
+      }
+      // неоновая жила внутри корня и бегущая искра к кончику
+      ctx.globalCompositeOperation = "lighter";
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let k = 1; k < NRP; k++) ctx.lineTo(pts[k].x, pts[k].y);
+      ctx.strokeStyle = rgba(cur.col, 0.1 * vis); ctx.lineWidth = 3.4 * sc + 1; ctx.stroke();
+      ctx.strokeStyle = rgba(cur.col, (0.66 + fl * 0.3) * vis); ctx.lineWidth = 1.05; ctx.stroke();
+      const u = ((time * 0.55 + r.ph) % 1) * (NRP - 1), k0 = Math.min(NRP - 2, u | 0), uu = u - k0;
+      ctx.fillStyle = rgba([225, 255, 235], 0.85 * vis); ctx.beginPath(); ctx.arc(lerp(pts[k0].x, pts[k0 + 1].x, uu), lerp(pts[k0].y, pts[k0 + 1].y, uu), 1.6 + sc * 0.5, 0, 6.283); ctx.fill();
+      // узел-«сокет» на кончике: отсюда растёт нить
+      const t = pts[NRP - 1], bw = wAt(NRP - 1) + 2.6 * sc;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = `rgba(8,11,11,${vis})`; ctx.beginPath(); ctx.arc(t.x, t.y, bw, 0, 6.283); ctx.fill();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = rgba(cur.col, (0.7 + fl * 0.3) * vis); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(t.x, t.y, bw, 0, 6.283); ctx.stroke();
+      ctx.fillStyle = rgba(cur.col, (0.85 + fl * 0.15) * vis); ctx.beginPath(); ctx.arc(t.x, t.y, 1.8 + sc, 0, 6.283); ctx.fill();
+      ctx.fillStyle = rgba(cur.col, 0.16 * vis); ctx.beginPath(); ctx.arc(t.x, t.y, bw + 5, 0, 6.283); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
   const threads = Array.from({ length: NMAIN }, (_, i) => new Thread(i, NPM, false));
   const kids = Array.from({ length: MAXKIDS }, (_, i) => new Thread(100 + i, NPC, true));
-  function resetThreads() { threads.forEach((t) => { t.state = "wait"; t.wait = rnd(0.05, 1.4); t.reset(); }); }
+  function resetThreads() { roots.forEach((r) => { r.init = false; }); threads.forEach((t) => { t.state = "wait"; t.wait = rnd(0.05, 1.4); t.reset(); }); }
   const E = { rr: 0, sc: 1, want: null, legD: [null, null, null, null, null], engaged, stepsFree: 2, activeMax: NMAIN, tScale: 1, speed: 0 };
 
   function snapAll() { engaged.fill(false); threads.forEach((t) => t.snap()); kids.forEach((k) => k.snap()); }
@@ -785,6 +900,7 @@
     threads.forEach((t) => { if (t.leg >= 0 && t.target && t.reachT < 1) stepping++; });
     E.stepsFree = Math.max(0, 2 - stepping);
 
+    updateRoots(dt);
     threads.forEach((t) => t.step(dt, E));
     kids.forEach((k) => k.step(dt, E));
 
@@ -841,6 +957,7 @@
       ctx.fillStyle = rgba(cur.col, a * vis); ctx.beginPath(); ctx.arc(p.x, p.y, 1.8, 0, 6.283); ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
+    drawRoots();
   }
 
   function draw(now) {
@@ -854,6 +971,7 @@
     eyeEl.style.transform =
       `translate3d(${f1(eye.x + jx - HALF)}px,${f1(eye.y + jy - HALF)}px,0) rotate(${(tilt + Math.sin(time * 0.7) * 0.8).toFixed(2)}deg) ` +
       `rotate(${sqzAng.toFixed(3)}rad) scale(${(sx * sc * bx).toFixed(3)},${(sy * sc * by).toFixed(3)}) rotate(${(-sqzAng).toFixed(3)}rad)`;
+    svP[0].setAttribute("stroke-dashoffset", (-time * 30).toFixed(1)); svP[1].setAttribute("stroke-dashoffset", (-time * 41).toFixed(1)); svP[2].setAttribute("stroke-dashoffset", (-time * 24).toFixed(1));
     // текстура белка едет вместе с радужкой: яблоко поворачивается, пустых мест не остаётся
     ballEl.style.transform = `translate(${f1(cur.gx * 27 * UNIT)}px,${f1(cur.gy * 27 * UNIT)}px)`;
 
