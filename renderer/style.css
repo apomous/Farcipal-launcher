@@ -195,8 +195,9 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 #eyeLayer { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
 #eye { position: absolute; left: 0; top: 0; will-change: transform; }
 #eye svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; display: block; }
-#eyeBody { will-change: transform; }
-#veinFlow path { fill: none; stroke: #e8fff0; stroke-opacity: .8; stroke-linecap: round; stroke-dasharray: 5 70; }
+#eyeMass { will-change: transform; }
+#eyeBallWrap { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#eyeBall { will-change: transform; }
 
 @media (max-width: 980px) {
   .stage { grid-template-columns: 240px 1fr; }

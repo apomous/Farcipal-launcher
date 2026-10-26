@@ -27,8 +27,8 @@
   const FLESH_GREEN = [24, 96, 54];
 
   // геометрия: радиус белка в px и в юнитах SVG
-  const R = 68, BALL = 92, IRIS = 52, PUPIL = 21, IRIS_K = 0.84, IRIS_E = IRIS * IRIS_K;
-  const SVG_PX = (260 / BALL) * R, HALF = SVG_PX / 2;
+  const R = 68, MASS = 102, IRIS = 52, PUPIL = 21, IRIS_K = 0.78, IRIS_E = IRIS * IRIS_K;
+  const SVG_PX = (260 / MASS) * R, HALF = SVG_PX / 2, UNIT = SVG_PX / 260;
 
   // ---------- состояние ----------
   let els = {}, W = innerWidth, H = innerHeight, dpr = 1;
@@ -51,8 +51,8 @@
   const parts = [];
 
   // ---------- сборка SVG ----------
-  let fib = [], sweepA, sweepB, irisMove, pupilMove, pupil, pupilShade, pupilGlint, tint;
-  let edgeU, edgeL, fillUp, fillLo, bandUp, bandLo;
+  let fib = [], sweepA, sweepB, irisMove, pupilMove, pupil, pupilShade, pupilGlow, pupilGlint, tint, corneaEl;
+  let edgeU, edgeL, apPath, ballEl, ballWrap, lidFx;
 
   const sampleQ = (p0, p1, p2, n) => {
     const out = [];
@@ -62,13 +62,25 @@
     }
     return out;
   };
+  const sampleC = (p0, p1, p2, p3, n) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1), u = 1 - t;
+      out.push({
+        x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+        y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
+      });
+    }
+    return out;
+  };
+  const polar = (ang, r) => ({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
 
-  // жирная вена: многоугольник с плавным сужением
+  // сосуд: многоугольник с плавным сужением
   function taper(pts, w0, w1, scale, ox, oy) {
     const n = pts.length, L = [], Rr = [];
     for (let i = 0; i < n; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
-      let dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy) || 1;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
       const nx = -dy / d, ny = dx / d, t = i / (n - 1);
       const w = lerp(w0, w1, Math.pow(t, 0.75)) * scale * 0.5;
       L.push(f1(pts[i].x + nx * w + ox) + " " + f1(pts[i].y + ny * w + oy));
@@ -77,124 +89,146 @@
     return "M" + L.join("L") + "L" + Rr.reverse().join("L") + "Z";
   }
 
+  // гладкий путь через точки (квадратичные кривые через середины отрезков)
+  function smoothPath(pts, move, sc, off) {
+    const X = (p) => f1((p.x + off) * sc), Y = (p) => f1((p.y + off) * sc);
+    let d = (move ? "M" : "L") + X(pts[0]) + " " + Y(pts[0]);
+    for (let i = 1; i < pts.length - 1; i++) d += "Q" + X(pts[i]) + " " + Y(pts[i]) + " " + f1(((pts[i].x + pts[i + 1].x) / 2 + off) * sc) + " " + f1(((pts[i].y + pts[i + 1].y) / 2 + off) * sc);
+    return d + "L" + X(pts[pts.length - 1]) + " " + Y(pts[pts.length - 1]);
+  }
+  function closedBlob(pts) {
+    const n = pts.length, mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    let m = mid(pts[n - 1], pts[0]), d = "M" + f1(m.x) + " " + f1(m.y);
+    for (let i = 0; i < n; i++) { const q = mid(pts[i], pts[(i + 1) % n]); d += "Q" + f1(pts[i].x) + " " + f1(pts[i].y) + " " + f1(q.x) + " " + f1(q.y); }
+    return d + "Z";
+  }
+
   function buildEye() {
     const $ = (id) => document.getElementById(id);
+    const mk = (parent, tag, attrs) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
     eyeEl = $("eye");
     eyeEl.style.width = eyeEl.style.height = SVG_PX.toFixed(1) + "px";
+    ballEl = $("eyeBall"); ballWrap = $("eyeBallWrap"); apPath = $("apPath"); lidFx = $("lidFx"); edgeU = $("edgeU"); edgeL = $("edgeL");
     irisMove = $("irisMove"); pupilMove = $("pupilMove"); pupil = $("pupil");
-    pupilShade = $("pupilShade"); pupilGlint = $("pupilGlint"); tint = $("tint");
-    veinFlowEl = $("veinFlow"); sweepA = $("sweepA"); sweepB = $("sweepB");
+    pupilShade = $("pupilShade"); pupilGlow = $("pupilGlow"); pupilGlint = $("pupilGlint"); tint = $("tint"); corneaEl = $("cornea");
+    sweepA = $("sweepA"); sweepB = $("sweepB");
     fib = [$("fibA"), $("fibB"), $("fibC")];
-    edgeU = $("edgeU"); edgeL = $("edgeL"); fillUp = $("fillUp"); fillLo = $("fillLo"); bandUp = $("bandUp"); bandLo = $("bandLo");
 
-    // пятна плоти и поры
-    const bl = $("blotches");
-    const add = (tag, attrs) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); bl.appendChild(e); };
+    // ---- плоть: неидеальная, чуть яйцевидная, тяжелее снизу
+    const ph = [rnd(0, 6.28), rnd(0, 6.28), rnd(0, 6.28), rnd(0, 6.28)], mp = [];
+    for (let i = 0; i < 64; i++) {
+      const th = (i / 64) * Math.PI * 2;
+      const r = 101 + 4.6 * Math.sin(2 * th + ph[0]) + 3.2 * Math.sin(3 * th + ph[1]) + 2 * Math.sin(5 * th + ph[2]) + 1.1 * Math.sin(9 * th + ph[3]) + 5 * Math.max(0, Math.sin(th));
+      mp.push({ x: Math.cos(th) * r, y: Math.sin(th) * r * 0.96 });
+    }
+    const massD = closedBlob(mp);
+    $("massShape").setAttribute("d", massD); $("massRim").setAttribute("d", massD);
+    const md = $("massDetail");
     for (let i = 0; i < 16; i++) {
-      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 86, cx = Math.cos(a) * d, cy = Math.sin(a) * d;
-      add("ellipse", {
-        cx: f1(cx), cy: f1(cy), rx: f1(rnd(8, 24)), ry: f1(rnd(5, 17)), transform: `rotate(${rnd(0, 180) | 0} ${f1(cx)} ${f1(cy)})`,
-        fill: ["#5a4a6a", "#3a5a4c", "#4a4a62", "#05050a"][(Math.random() * 4) | 0], opacity: rnd(0.14, 0.34).toFixed(2)
-      });
+      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 96, cx = Math.cos(a) * d, cy = Math.sin(a) * d;
+      mk(md, "ellipse", { cx: f1(cx), cy: f1(cy), rx: f1(rnd(8, 22)), ry: f1(rnd(5, 15)), transform: `rotate(${rnd(0, 180) | 0} ${f1(cx)} ${f1(cy)})`, fill: Math.random() < 0.5 ? "#6a7576" : "#000", opacity: rnd(0.06, 0.16).toFixed(2) });
     }
-    for (let i = 0; i < 70; i++) {
-      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 88;
-      add("circle", { cx: f1(Math.cos(a) * d), cy: f1(Math.sin(a) * d), r: f1(rnd(0.6, 1.7)), fill: "#000", opacity: rnd(0.2, 0.45).toFixed(2) });
+    for (let i = 0; i < 90; i++) {
+      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 98;
+      mk(md, "circle", { cx: f1(Math.cos(a) * d), cy: f1(Math.sin(a) * d), r: f1(rnd(0.5, 1.5)), fill: "#000", opacity: rnd(0.2, 0.5).toFixed(2) });
+    }
+    // складки кожи: тёмная линия + светлая рядом (рельеф)
+    const folds = [
+      "M -86 -26 Q -60 -80 0 -86 Q 60 -80 86 -26", "M -80 -40 Q -48 -88 0 -92 Q 48 -88 80 -40",
+      "M -80 28 Q -44 84 0 88 Q 44 84 80 28", "M -68 38 Q -34 92 0 96 Q 34 92 68 38",
+      "M -86 6 Q -100 -2 -110 -15", "M -86 10 Q -102 15 -112 27", "M -84 14 Q -96 30 -102 44", "M -86 0 Q -98 -16 -102 -32",
+      "M 86 0 Q 100 -6 110 -18", "M 86 6 Q 102 12 112 24", "M 84 12 Q 96 28 100 42", "M 86 -4 Q 98 -20 100 -36"
+    ];
+    const fg = mk(md, "g", { filter: "url(#blurS)" });
+    folds.forEach((d) => {
+      mk(fg, "path", { d, fill: "none", stroke: "#000", "stroke-opacity": ".4", "stroke-width": f1(rnd(1.6, 3)), "stroke-linecap": "round" });
+      mk(fg, "path", { d, fill: "none", stroke: "#7e8a89", "stroke-opacity": ".15", "stroke-width": "1.2", "stroke-linecap": "round", transform: "translate(1 1.6)" });
+    });
+
+    // ---- глазное яблоко: текстура с запасом, чтобы при повороте не было пустых мест
+    const bl = $("ballBlotches");
+    for (let i = 0; i < 20; i++) {
+      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 112, cx = Math.cos(a) * d, cy = Math.sin(a) * d;
+      mk(bl, "ellipse", { cx: f1(cx), cy: f1(cy), rx: f1(rnd(8, 24)), ry: f1(rnd(5, 16)), transform: `rotate(${rnd(0, 180) | 0} ${f1(cx)} ${f1(cy)})`, fill: ["#8a5a4a", "#6d7660", "#a09a82", "#3a302a"][(Math.random() * 4) | 0], opacity: rnd(0.1, 0.26).toFixed(2) });
+    }
+    for (let i = 0; i < 80; i++) {
+      const a = rnd(0, 6.28), d = Math.sqrt(Math.random()) * 114;
+      mk(bl, "circle", { cx: f1(Math.cos(a) * d), cy: f1(Math.sin(a) * d), r: f1(rnd(0.5, 1.4)), fill: "#000", opacity: rnd(0.14, 0.34).toFixed(2) });
     }
 
-    // вены: выходят из-под радужки, ветвятся к краю и слегка перекрывают его
-    const veins = [], flows = [];
-    const polar = (ang, r) => ({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
-    const sampleC = (p0, p1, p2, p3, n) => {
-      const out = [];
-      for (let i = 0; i < n; i++) {
-        const t = i / (n - 1), u = 1 - t;
-        out.push({
-          x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-          y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
-        });
-      }
-      return out;
-    };
-    const N = 14, rIn = IRIS_E - 4, rOut = BALL + 6;
+    // сеть сосудов растёт от центра (под радужкой) к краю, поэтому «пустого круга» за зрачком нет
+    const veins = [], N = 17;
     for (let i = 0; i < N; i++) {
-      const a = (i / N) * Math.PI * 2 + rnd(-0.12, 0.12), bend = rnd(-0.3, 0.3);
-      const pts = sampleC(
-        polar(a, rIn), polar(a + rnd(-0.22, 0.22), lerp(rIn, rOut, 0.34)),
-        polar(a + bend + rnd(-0.22, 0.22), lerp(rIn, rOut, 0.68)), polar(a + bend, rOut), 22);
-      const w0 = rnd(6.5, 8.8), w1 = 2.1;
+      const a = (i / N) * Math.PI * 2 + rnd(-0.28, 0.28), bend = rnd(-0.45, 0.45);
+      const r0 = Math.random() < 0.55 ? 6 : rnd(22, 52);            // часть сосудов выходит из-под радужки, часть начинается дальше
+      const pts = sampleC(polar(a, r0), polar(a + rnd(-0.25, 0.25), lerp(r0, 114, 0.34)), polar(a + bend + rnd(-0.25, 0.25), lerp(r0, 114, 0.7)), polar(a + bend, rnd(100, 116)), 26);
+      const w0 = rnd(5.2, 7.4), w1 = 1.5;
       veins.push({ pts, w0, w1, hi: true });
-      flows.push(pts);
-      const nb = 1 + ((Math.random() * 2) | 0);
+      const nb = 2 + ((Math.random() * 3) | 0);
       for (let b = 0; b < nb; b++) {
-        const idx = 7 + ((Math.random() * 9) | 0), s0 = pts[idx], t = idx / 21;
+        const idx = 7 + ((Math.random() * 13) | 0), s0 = pts[idx], t = idx / 25;
         const tx = pts[idx + 1].x - pts[idx - 1].x, ty = pts[idx + 1].y - pts[idx - 1].y;
-        let ang = Math.atan2(ty, tx) + (Math.random() < 0.5 ? -1 : 1) * rnd(0.4, 0.8);
-        const len = rnd(16, 30);
-        let dx = Math.cos(ang), dy = Math.sin(ang);
-        if (dx * s0.x + dy * s0.y < 0) { ang = Math.atan2(ty, tx) - Math.sign(ang - Math.atan2(ty, tx)) * rnd(0.4, 0.8); dx = Math.cos(ang); dy = Math.sin(ang); }
-        const pw = lerp(w0, w1, Math.pow(t, 0.75));
-        veins.push({
-          pts: sampleQ(s0, { x: s0.x + dx * len * 0.5 - dy * rnd(-5, 5), y: s0.y + dy * len * 0.5 + dx * rnd(-5, 5) }, { x: s0.x + dx * len, y: s0.y + dy * len }, 11),
-          w0: pw * 0.62, w1: 0.9, hi: true
-        });
+        const ang = Math.atan2(ty, tx) + (Math.random() < 0.5 ? -1 : 1) * rnd(0.3, 0.85), len = rnd(18, 42);
+        const dx = Math.cos(ang), dy = Math.sin(ang), pw = lerp(w0, w1, Math.pow(t, 0.75));
+        const bp = sampleQ(s0, { x: s0.x + dx * len * 0.5 - dy * rnd(-7, 7), y: s0.y + dy * len * 0.5 + dx * rnd(-7, 7) }, { x: s0.x + dx * len, y: s0.y + dy * len }, 12);
+        veins.push({ pts: bp, w0: pw * 0.62, w1: 0.8, hi: true });
+        if (Math.random() < 0.6) {
+          const m = bp[6], a2 = ang + (Math.random() < 0.5 ? -1 : 1) * rnd(0.5, 0.95), l2 = rnd(12, 24);
+          veins.push({ pts: sampleQ(m, { x: m.x + Math.cos(a2) * l2 * 0.5, y: m.y + Math.sin(a2) * l2 * 0.5 }, { x: m.x + Math.cos(a2) * l2, y: m.y + Math.sin(a2) * l2 }, 8), w0: pw * 0.3, w1: 0.45, hi: false });
+        }
       }
     }
-    let dS = "", dM = "", dH = "";
+    for (let i = 0; i < 36; i++) {
+      const a = rnd(0, 6.28), r = rnd(34, 108), dir = a + rnd(-1.2, 1.2), len = rnd(10, 24), s0 = polar(a, r);
+      veins.push({ pts: sampleQ(s0, { x: s0.x + Math.cos(dir) * len * 0.5 + rnd(-3, 3), y: s0.y + Math.sin(dir) * len * 0.5 + rnd(-3, 3) }, { x: s0.x + Math.cos(dir) * len, y: s0.y + Math.sin(dir) * len }, 8), w0: 1.7, w1: 0.4, hi: false });
+    }
+    let dS = "", dB = "", dH = "";
     veins.forEach((v) => {
-      dS += taper(v.pts, v.w0, v.w1, 1.5, 1.6, 2.2);
-      dM += taper(v.pts, v.w0, v.w1, 1, 0, 0);
-      if (v.hi) dH += taper(v.pts, v.w0, v.w1, 0.24, -1.2, -1.5);
+      dS += taper(v.pts, v.w0, v.w1, 1.7, 1.4, 2.1);
+      dB += taper(v.pts, v.w0, v.w1, 1, 0, 0);
+      if (v.hi) dH += taper(v.pts, v.w0, v.w1, 0.3, -0.9, -1.2);
     });
-    $("veinShadow").appendChild(Object.assign(document.createElementNS(SVGNS, "path"), {})).setAttribute("d", dS);
-    $("veinMain").appendChild(document.createElementNS(SVGNS, "path")).setAttribute("d", dM);
-    $("veinHi").appendChild(document.createElementNS(SVGNS, "path")).setAttribute("d", dH);
+    [["veinShadow", dS], ["veinBody", dB], ["veinHi", dH]].forEach(([id, d]) => mk($(id), "path", { d }));
 
-    // бегущий свет по венам (живой слой)
-    const vf = $("veinFlow");
-    flows.forEach((pts, i) => {
-      const p = document.createElementNS(SVGNS, "path");
-      p.setAttribute("d", "M" + pts.map((q) => f1(q.x) + " " + f1(q.y)).join("L"));
-      p.setAttribute("stroke-width", f1(rnd(1.1, 1.9)));
-      p.style.strokeDashoffset = `calc(var(--vf, 0px) - ${rnd(0, 75).toFixed(1)}px)`;
-      p.style.stroke = "var(--ec)";
-      vf.appendChild(p);
-    });
-
-    // волокна радужки (ДНК FARCIPAL EYE)
-    const tones = ["#174f2c", "#1b5e34", "#1f6c3c", "#247a44"];
+    // ---- волокна радужки (ДНК FARCIPAL EYE)
+    const tones = ["#0b3a22", "#0f4a2a", "#2a9c5c", "#38b86e"];
     const TAU = Math.PI * 2, FIBERS = 210, k = IRIS / 168;
     for (let i = 0; i < FIBERS; i++) {
       const a = (i / FIBERS) * TAU + rnd(-0.025, 0.025);
       const r0 = PUPIL + 1 + rnd(0, 4), r1 = IRIS * (0.5 + Math.random() * 0.46), bend = rnd(-0.04, 0.04);
       const am = a + bend, rm = (r0 + r1) / 2;
-      const p = document.createElementNS(SVGNS, "path");
-      p.setAttribute("d", `M ${f1(Math.cos(a) * r0)} ${f1(Math.sin(a) * r0)} Q ${f1(Math.cos(am) * rm)} ${f1(Math.sin(am) * rm)} ${f1(Math.cos(a + bend * 1.6) * r1)} ${f1(Math.sin(a + bend * 1.6) * r1)}`);
       const lighter = Math.random() < 0.18;
-      p.setAttribute("stroke", lighter ? "#2f9a58" : tones[(Math.random() * tones.length) | 0]);
-      p.setAttribute("stroke-opacity", (lighter ? rnd(0.3, 0.55) : rnd(0.2, 0.6)).toFixed(2));
-      p.setAttribute("stroke-width", ((0.5 + Math.random() * 1.1) * k * 2.2).toFixed(2));
-      p.setAttribute("fill", "none");
-      fib[i % 3].appendChild(p);
+      mk(fib[i % 3], "path", {
+        d: `M ${f1(Math.cos(a) * r0)} ${f1(Math.sin(a) * r0)} Q ${f1(Math.cos(am) * rm)} ${f1(Math.sin(am) * rm)} ${f1(Math.cos(a + bend * 1.6) * r1)} ${f1(Math.sin(a + bend * 1.6) * r1)}`,
+        stroke: lighter ? "#2f9a58" : tones[(Math.random() * tones.length) | 0],
+        "stroke-opacity": (lighter ? rnd(0.3, 0.55) : rnd(0.2, 0.6)).toFixed(2),
+        "stroke-width": ((0.5 + Math.random() * 1.1) * k * 2.2).toFixed(2), fill: "none"
+      });
     }
-    setLids(0);
+    setAperture(0);
   }
 
-  // ---------- веки ----------
-  // c: 0 = открыт, 1 = закрыт. Края — миндалевидный разрез: верхний выгнут вверх, нижний вниз,
-  // при закрытии оба стягиваются в одну линию.
-  function setLids(c) {
-    const ysU = lerp(-18, 6, c), ycU = lerp(-70, 14, c);
-    const cl = Math.pow(c, 1.5);
-    const ysL = lerp(26, 6, cl), ycL = lerp(68, 14, cl);
-    const kU = 2 * ycU - ysU, kL = 2 * ycL - ysL;
-    const eU = `M -112 ${f1(ysU)} Q 0 ${f1(kU)} 112 ${f1(ysU)}`;
-    const eL = `M -112 ${f1(ysL)} Q 0 ${f1(kL)} 112 ${f1(ysL)}`;
-    edgeU.setAttribute("d", eU); edgeL.setAttribute("d", eL);
-    fillUp.setAttribute("d", `M -112 -240 H 112 V ${f1(ysU)} Q 0 ${f1(kU)} -112 ${f1(ysU)} Z`);
-    fillLo.setAttribute("d", `M -112 240 H 112 V ${f1(ysL)} Q 0 ${f1(kL)} -112 ${f1(ysL)} Z`);
-    bandUp.setAttribute("d", `M -112 ${f1(ysU)} Q 0 ${f1(kU)} 112 ${f1(ysU)} L 112 ${f1(ysU + 30)} Q 0 ${f1(kU + 30)} -112 ${f1(ysU + 30)} Z`);
-    bandLo.setAttribute("d", `M -112 ${f1(ysL)} Q 0 ${f1(kL)} 112 ${f1(ysL)} L 112 ${f1(ysL - 26)} Q 0 ${f1(kL - 26)} -112 ${f1(ysL - 26)} Z`);
+  // ---------- веки: проём между ними ----------
+  // c: 0 = открыт, 1 = закрыт. Проём миндалевидный, края неровные и живые; снаружи проёма только плоть.
+  const NE = 14;
+  function setAperture(c) {
+    const cl = Math.pow(c, 1.6), up = [], lo = [];
+    lidFx.setAttribute("opacity", (1 - 0.8 * c).toFixed(2));
+    for (let i = 0; i <= NE; i++) {
+      const t = i / NE, x = lerp(-80, 80, t), cy = lerp(10, -3, t);            // внутренний угол ниже: хищный взгляд
+      const bump = Math.pow(Math.sin(Math.PI * t), 0.85);
+      const wU = (1 - c) * (2.6 * nz(t * 3.3 + 1.7) + 1.3 * nz(t * 7.1 + time * 0.5)) * bump;
+      const wL = (1 - cl) * (1.9 * nz(t * 3 + 4.2) + 1 * nz(t * 6.5 + time * 0.45)) * bump;
+      let yU = cy - 62 * (1 - c) * bump + 5 * c * bump + wU, yL = cy + 57 * (1 - cl) * bump - 3 * cl * bump + wL;
+      if (yU > yL) { const m = (yU + yL) / 2; yU = yL = m; }
+      up.push({ x, y: yU }); lo.push({ x, y: yL });
+    }
+    const dU = smoothPath(up, true, 1, 0), dL = smoothPath(lo, true, 1, 0);
+    edgeU.setAttribute("d", dU); edgeL.setAttribute("d", dL);
+    const rev = lo.slice().reverse();
+    apPath.setAttribute("d", dU + smoothPath(rev, false, 1, 0) + "Z");
+    // то же в пикселях для CSS clip-path яблока
+    ballWrap.style.clipPath = `path("${smoothPath(up, true, UNIT, 130)}${smoothPath(rev, false, UNIT, 130)}Z")`;
   }
 
   // моргание: быстро закрываем, на миг держим, медленнее открываем (230 мс)
@@ -332,7 +366,7 @@
 
     const bobK = reduced ? 0 : 1;
     const bob = { x: Math.sin(time * 0.9) * 6 * bobK, y: Math.cos(time * 1.3) * 9 * bobK };
-    let lid = 1, px = 1, py = 1, sc = 1, spin = 1, vis = 1, col = COLORS.green, tintT = 0;
+    let lid = 1, px = 0.8, py = 1.12, sc = 1, spin = 1, vis = 1, col = COLORS.green, tintT = 0;
     let gazeAt = { x: mouse.x, y: mouse.y };
     let pin = false;
 
@@ -725,6 +759,13 @@
     if (want === "cap") {
       const P = 2 * (capRect.width + capRect.height), inf = perimInfo(capRect, mouse.x, mouse.y), sT = inf.s;
       capPerch.x = inf.px + inf.nx * 125; capPerch.y = inf.py + inf.ny * 125;
+      if (btnRect) {                       // обходим зону кнопки + прогресс-бара: сдвигаемся выше или ниже
+        const aL = btnRect.left - 30, aR = btnRect.right + 30, aT = btnRect.top - 14, aB = (progRect ? progRect.bottom : btnRect.bottom) + 54, rr = R + 14;
+        if (Math.hypot(capPerch.x - clamp(capPerch.x, aL, aR), capPerch.y - clamp(capPerch.y, aT, aB)) < rr) {
+          const up = aT - rr, down = aB + rr;
+          capPerch.y = (Math.abs(capPerch.y - up) <= Math.abs(capPerch.y - down) || down > H - R - 10) ? up : down;
+        }
+      }
       if (capEl !== lastCapEl) { capS = sT; lastCapEl = capEl; }
       else capS += clamp(((sT - capS + P * 1.5) % P) - P / 2, -520 * dt, 520 * dt);
     }
@@ -772,7 +813,7 @@
 
   // ---------- отрисовка ----------
   const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
-  let lastEc = "", veinFlowEl = null;
+  let lastEc = "";
 
   function drawThreads() {
     const ctx = ctxW, fl = flash, vis = cur.vis;
@@ -807,9 +848,14 @@
     const sc = cur.sc, sx = 1 - 0.24 * sqz, sy = 1 + 0.16 * sqz;
     let jx = 0, jy = 0;
     if (mode === "error") { const a = Math.max(0, 1 - (now - errT0) / 1300) * 7; jx = rnd(-a, a); jy = rnd(-a, a); }
+    // дыхание и пульс: тело живёт, а не стоит как наклейка
+    const asleepK = mode === "sleep" ? 0.5 : 1, hb = Math.pow(Math.max(0, Math.sin(time * 5.4)), 10) * 0.02 * asleepK;
+    const bx = 1 + 0.012 * Math.sin(time * 1.6) + hb, by = 1 + 0.012 * Math.sin(time * 1.6 + 1.4) + hb;
     eyeEl.style.transform =
-      `translate3d(${f1(eye.x + jx - HALF)}px,${f1(eye.y + jy - HALF)}px,0) rotate(${tilt.toFixed(2)}deg) ` +
-      `rotate(${sqzAng.toFixed(3)}rad) scale(${(sx * sc).toFixed(3)},${(sy * sc).toFixed(3)}) rotate(${(-sqzAng).toFixed(3)}rad)`;
+      `translate3d(${f1(eye.x + jx - HALF)}px,${f1(eye.y + jy - HALF)}px,0) rotate(${(tilt + Math.sin(time * 0.7) * 0.8).toFixed(2)}deg) ` +
+      `rotate(${sqzAng.toFixed(3)}rad) scale(${(sx * sc * bx).toFixed(3)},${(sy * sc * by).toFixed(3)}) rotate(${(-sqzAng).toFixed(3)}rad)`;
+    // текстура белка едет вместе с радужкой: яблоко поворачивается, пустых мест не остаётся
+    ballEl.style.transform = `translate(${f1(cur.gx * 27 * UNIT)}px,${f1(cur.gy * 27 * UNIT)}px)`;
 
     const ec = `rgb(${cur.col[0] | 0},${cur.col[1] | 0},${cur.col[2] | 0})`;
     if (ec !== lastEc) { eyeEl.parentNode.style.setProperty("--ec", ec); lastEc = ec; }
@@ -819,13 +865,14 @@
     pupilMove.setAttribute("transform", `translate(${f1(cur.gx * 10)} ${f1(cur.gy * 10)})`);
     pupil.setAttribute("rx", (PUPIL * cur.px).toFixed(2)); pupil.setAttribute("ry", (PUPIL * cur.py).toFixed(2));
     pupilShade.setAttribute("rx", ((PUPIL + 10) * cur.px).toFixed(2)); pupilShade.setAttribute("ry", ((PUPIL + 10) * cur.py).toFixed(2));
+    pupilGlow.setAttribute("rx", ((PUPIL + 17) * cur.px).toFixed(2)); pupilGlow.setAttribute("ry", ((PUPIL + 17) * cur.py).toFixed(2));
+    corneaEl.setAttribute("transform", `translate(${f1(cur.gx * 11)} ${f1(cur.gy * 11)})`);
     pupilGlint.setAttribute("cx", f1(-6 * cur.px)); pupilGlint.setAttribute("cy", f1(-7 * Math.min(cur.py, 1.15)));
 
     // веки: базовая открытость + естественное моргание
     const baseC = 1 - clamp(cur.lid, 0, 1), b = blinkAmount(now);
-    setLids(forceLid != null ? forceLid : baseC + b * (1 - baseC));
+    setAperture(forceLid != null ? forceLid : baseC + b * (1 - baseC));
 
-    veinFlowEl.style.setProperty("--vf", (-((time * 23) % 75)).toFixed(1) + "px");
     const sp = cur.spin * time;
     fib[0].setAttribute("transform", `rotate(${(sp * 2.9).toFixed(2)})`);
     fib[1].setAttribute("transform", `rotate(${(-sp * 2).toFixed(2)})`);
