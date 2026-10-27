@@ -1,3 +1,5 @@
+<img width="512" height="512" alt="farcipal-icon-512" src="https://github.com/user-attachments/assets/8a39ea5f-5dff-476d-abb3-08031cadd0cf" />
+
 # FARCIPAL Launcher
 
 Лаунчер Minecraft Java на Electron. Дизайн и глаз-компаньон из FARCIPAL EYE.
