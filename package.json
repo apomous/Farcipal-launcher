@@ -1,7 +1,7 @@
 {
   "name": "farcipal-launcher",
-  "version": "0.1.0",
-  "description": "Лаунчер Minecraft в стиле FARCIPAL",
+  "version": "0.2.0",
+  "description": "Farcipal Desktop Client",
   "main": "main.js",
   "author": "apomous",
   "license": "MIT",
