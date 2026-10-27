@@ -10,6 +10,8 @@
     "dist": "electron-builder --win portable"
   },
   "dependencies": {
+    "@xmcl/core": "^2.12.0",
+    "@xmcl/installer": "^5.4.0",
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5"
   },
