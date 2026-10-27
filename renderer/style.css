@@ -31,7 +31,8 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 }
 .topbar a, .topbar button, .topbar .pill { -webkit-app-region: no-drag; }
 .brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text); }
-.mark { width: 28px; height: 28px; flex: none; overflow: visible; }
+.mark { width: 55px; height: 55px; flex: none; overflow: visible;   transform: translateY(-3px); /* <--- Сдвигает иконку вверх на 3 пикселя */
+  transition: transform 0.2s ease; }
 .brand-name { font-weight: 600; font-size: 13px; letter-spacing: 0.34em; }
 .brand-div { width: 1px; height: 14px; background: rgba(255, 255, 255, 0.14); }
 .brand-sub { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--muted); }
