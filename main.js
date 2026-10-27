@@ -167,7 +167,7 @@ ipcMain.handle("game:play", async (_e, opts) => {
       return { ok: false, error: "Ник: 3–16 символов, латиница, цифры и _" };
     }
     authorization = Authenticator.getAuth(nick);
-    extraArgs.push("--demo");
+    //extraArgs.push("--demo");
   }
 
   const client = new Client();
