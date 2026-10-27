@@ -29,7 +29,7 @@
   const FLESH_GREEN = [24, 96, 54];
 
   // геометрия: радиус белка в px и в юнитах SVG
-  const R = 68, MASS = 102, IRIS = 52, PUPIL = 21, IRIS_K = 0.78, IRIS_E = IRIS * IRIS_K;
+  const R = 50, MASS = 102, IRIS = 52, PUPIL = 21, IRIS_K = 0.78, IRIS_E = IRIS * IRIS_K;
   const SVG_PX = (260 / MASS) * R, HALF = SVG_PX / 2, UNIT = SVG_PX / 260;
 
   // ---------- состояние ----------
