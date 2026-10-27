@@ -178,8 +178,8 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
     0 0 0 4px #05050a, 0 0 54px rgba(var(--pcA), .85);
   background: linear-gradient(#10101a, #0a0a12);
 }
-.play[data-s="loading"] { --pc: var(--amber); --pcA: 232, 180, 90; cursor: progress; }
-.play[data-s="running"] { --pc: var(--red); --pcA: 248, 113, 113; }
+.play[data-s="loading"] { --pc: var(--amber); --pcA: 232, 180, 90; cursor: pointer; }
+.play[data-s="running"] { --pc: var(--green); --pcA: 61, 207, 111; }
 .play[data-s="error"] { --pc: var(--red); --pcA: 248, 113, 113; }
 
 /* ---------- прогресс и статус ---------- */

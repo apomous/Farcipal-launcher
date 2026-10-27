@@ -39,8 +39,8 @@
   // ---------- состояние интерфейса ----------
   const UI = {
     idle:    { dot: "idle",     pill: "готов",     status: "готов",     btn: "ЗАПУСТИТЬ" },
-    loading: { dot: "scanning", pill: "загрузка",  status: "загрузка",  btn: "ЗАГРУЗКА" },
-    running: { dot: "found",    pill: "в игре",    status: "в игре",    btn: "ОСТАНОВИТЬ" },
+    loading: { dot: "scanning", pill: "загрузка",  status: "загрузка",  btn: "ОСТАНОВИТЬ" },
+    running: { dot: "found",    pill: "в игре",    status: "в игре",    btn: "В ИГРЕ" },
     error:   { dot: "error",    pill: "сбой",      status: "ошибка",    btn: "ЗАПУСТИТЬ" }
   };
   let uiState = "idle";
@@ -50,11 +50,14 @@
     pillDot.dataset.s = statusDot.dataset.s = u.dot;
     pillText.textContent = u.pill; statusText.textContent = u.status;
     playText.textContent = u.btn; play.dataset.s = s;
-    play.disabled = s === "loading";
+    play.disabled = false; // <--- ИСПРАВЛЕНО: теперь кнопка всегда кликабельна
     play.setAttribute("aria-busy", s === "loading" ? "true" : "false");
+    
     [ver, snap].forEach((el) => { el.disabled = s === "loading" || s === "running"; });
     acct.disabled = s === "loading" || s === "running";
-    C.setHoverable(s === "idle" || s === "error");
+    
+    // Глаз реагирует на наведение только когда мы в меню или ошибке
+    C.setHoverable(s === "idle" || s === "error"); 
   }
   setUi("idle");
 
@@ -158,8 +161,13 @@
   // ---------- запуск: удар, потом загрузка ----------
   let starting = false;
   play.addEventListener("click", async () => {
-    if (uiState === "running") { await L.stop(); return; }
-    if (uiState === "loading" || starting) return;
+        if (uiState === "running" || uiState === "loading") { 
+      await L.stop(); 
+      setUi("idle");
+      C.phase("idle");
+      return;
+    } 
+        if (starting) return;
     starting = true;
     save(); showHint("");
     await C.slam();                       // глаз врезается в кнопку, дальше только загрузка
