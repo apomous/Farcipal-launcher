@@ -24,12 +24,14 @@
       "main.js",
       "preload.js",
       "config.js",
+      "icon.png",
       "renderer/**/*"
     ],
     "win": {
       "target": [
         "portable"
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   }
 }

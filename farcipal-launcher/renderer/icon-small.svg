@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs><clipPath id="eyeClip"><path d="M 266 642 C 330 566 430 522 512 520 C 600 518 700 552 758 598 C 700 664 610 722 512 722 C 420 722 326 690 266 642 Z"/></clipPath></defs>
+<polygon points="512.0,112.0 858.4,312.0 512.0,512.0 165.6,312.0" fill="#14151f"/><polygon points="165.6,312.0 512.0,512.0 512.0,912.0 165.6,712.0" fill="#0c0d14"/><polygon points="512.0,512.0 858.4,312.0 858.4,712.0 512.0,912.0" fill="#07070b"/>
+<g fill="none" stroke-linejoin="round" stroke-linecap="round" stroke="#d2a94f">
+  <polygon points="512.0,112.0 858.4,312.0 858.4,712.0 512.0,912.0 165.6,712.0 165.6,312.0" stroke-width="54"/>
+  <polyline points="165.6,312.0 512.0,512.0 858.4,312.0" stroke-width="44"/>
+  <line x1="512" y1="512" x2="512" y2="530" stroke-width="44"/>
+</g>
+<path d="M 498 716 L 526 716 L 520 900 L 504 900 Z" fill="#3dcf6f"/>
+<path d="M 266 642 C 330 566 430 522 512 520 C 600 518 700 552 758 598 C 700 664 610 722 512 722 C 420 722 326 690 266 642 Z" fill="#06160c"/>
+<g clip-path="url(#eyeClip)"><circle cx="512" cy="620" r="108" fill="#0d5a30"/><circle cx="512" cy="620" r="52" fill="#010302"/><circle cx="512" cy="620" r="108" fill="none" stroke="#3dcf6f" stroke-width="26"/><circle cx="496" cy="602" r="11" fill="#fff" fill-opacity=".9"/></g>
+<path d="M 266 642 C 330 566 430 522 512 520 C 600 518 700 552 758 598 C 700 664 610 722 512 722 C 420 722 326 690 266 642 Z" fill="none" stroke="#3dcf6f" stroke-width="30" stroke-linejoin="round"/>
+</svg>
