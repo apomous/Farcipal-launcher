@@ -209,7 +209,38 @@
   L.on("game:log", ({ text, game }) => {
     if (text && (game || /error|fail|ошиб/i.test(text))) log(text.slice(0, 160), /error|fail/i.test(text) ? "err" : "");
   });
+  // --- ЛОГИКА ВКЛАДОК ---
+  const tabs = document.querySelectorAll(".tab");
+  const tabIndicator = document.getElementById("tabIndicator");
 
+  function moveIndicator(activeTab) {
+    if (!activeTab || !tabIndicator) return;
+    tabIndicator.style.width = `${activeTab.offsetWidth}px`;
+    tabIndicator.style.transform = `translateX(${activeTab.offsetLeft}px)`;
+  }
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      // Переключаем активный класс у кнопок
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      moveIndicator(tab);
+
+      // Меняем режим у body (это включит нужные CSS-стили)
+      const target = tab.dataset.target;
+      document.body.dataset.mode = target;
+      C.phase("idle"); 
+    });
+  });
+
+  // Инициализация при старте (чтобы плашка сразу встала под "ИГРАТЬ")
+  setTimeout(() => {
+    moveIndicator(document.querySelector('.tab.active'));
+  }, 100);
+    // Устанавливаем режим "play" по умолчанию при старте
+  document.body.dataset.mode = "play";
+  
+  // Кнопки управления окном
   $("wmin").addEventListener("click", () => L.win("min"));
   $("wclose").addEventListener("click", () => L.win("close"));
+
 })();

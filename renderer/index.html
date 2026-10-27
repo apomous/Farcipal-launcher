@@ -20,9 +20,19 @@
       <span class="brand-div" aria-hidden="true"></span>
       <span class="brand-sub">launcher</span>
     </a>
-    <div class="top-right">
+        <div class="top-right">
+      <!-- ВКЛАДКИ С ПЛАШКОЙ -->
+      <div class="nav-tabs">
+        <div class="tab-indicator" id="tabIndicator"></div>
+        <button class="tab active" data-target="play">ИГРАТЬ</button>
+        <button class="tab" data-target="store">МАГАЗИН</button>
+        <button class="tab" data-target="settings">НАСТРОЙКИ</button>
+      </div>
+
       <time class="clock" id="clock">00:00:00</time>
+      
       <span class="pill"><span class="dot" id="pillDot" data-s="idle"></span><span id="pillText">готов</span></span>
+      
       <div class="wbtns">
         <button class="wbtn" id="wmin" type="button" aria-label="Свернуть"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
         <button class="wbtn close" id="wclose" type="button" aria-label="Закрыть"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
@@ -59,6 +69,7 @@
           <span class="ram-min">4</span>
           <input id="ram" type="range" min="4" max="16" step="1" value="4">
           <span class="ram-max">16</span>
+        </div>
       </label>
       <label class="check" id="joinWrap"><input id="join" type="checkbox"> Заходить на сервер сразу</label>
     </aside>

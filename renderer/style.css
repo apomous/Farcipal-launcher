@@ -63,6 +63,7 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
   position: absolute; inset: 0; z-index: 1;
   display: grid; grid-template-columns: minmax(240px, 280px) 1fr minmax(240px, 300px);
   grid-template-rows: minmax(0, 1fr) 150px; gap: 18px; padding: 70px 26px 22px;
+  transition: all 0.4s ease;
 }
 .panel {
   background: rgba(14, 14, 22, .86); border: 1px solid var(--line); border-radius: 14px;
@@ -245,3 +246,83 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 @media (prefers-reduced-motion: reduce) {
   .progress.on i, .dot[data-s="scanning"] { animation: none; }
 }
+/* --- СТИЛИ ДЛЯ ВКЛАДОК --- */
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(15, 15, 24, 0.6);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  margin-right: 10px;
+  -webkit-app-region: no-drag;
+  position: relative; 
+}
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 6px;
+  background: rgba(61, 207, 111, 0.15);
+  border: 1px solid rgba(61, 207, 111, 0.3);
+  box-shadow: inset 0 0 10px rgba(61, 207, 111, 0.1);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), width 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tab {
+  position: relative;
+  z-index: 1; 
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font: 600 11px var(--sans);
+  letter-spacing: 0.1em;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+  
+  color: var(--green);
+  
+}
+
+/* --- ЛОГИКА ЭКРАНОВ ПРИ ПЕРЕКЛЮЧЕНИИ --- */
+/* Когда открыты НАСТРОЙКИ, прячем всё лишнее и центрируем панель */
+body[data-mode="settings"] .core,
+body[data-mode="settings"] .side,
+body[data-mode="settings"] .term {
+  display: none !important;
+}
+
+body[data-mode="settings"] .stage {
+  grid-template-columns: 1fr; /* Делаем одну колонку на весь экран */
+}
+
+body[data-mode="settings"] .profile {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  justify-content: center; /* Центрируем содержимое по вертикали */
+}
+
+/* Когда открыт МАГАЗИН, прячем вообще всё (пока там пусто) */
+body[data-mode="store"] .core,
+body[data-mode="store"] .side,
+body[data-mode="store"] .term,
+body[data-mode="store"] .profile {
+  display: none !important;
+}
+
