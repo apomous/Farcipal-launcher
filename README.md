@@ -1,4 +1,4 @@
-![Uploading farcipal-icon-512.png…]()
+[Uploading farcipal-icon-512.png…]
 
 # FARCIPAL Launcher
 
