@@ -70,6 +70,7 @@ async function installAndLaunch(opts, hooks, deps) {
     // ВОТ ТУТ ДОБАВЛЯЕМ ЗЕРКАЛО ДЛЯ БИБЛИОТЕК:
     await runTask(
       inst.installDependenciesTask && inst.installDependenciesTask(resolved, {
+        assetsHost: `${MIRROR}/assets`,
         libraryHost: (lib) => `${MIRROR}/maven/${lib.groupId.replace(/\./g, "/")}/${lib.artifactId}/${lib.version}/${lib.artifactId}-${lib.version}.jar`
       }), 
       () => inst.installDependencies(resolved), 
