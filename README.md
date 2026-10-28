@@ -1,3 +1,5 @@
+![Uploading farcipal-icon-512.png…]()
+
 # FARCIPAL Launcher
 
 Лаунчер Minecraft Java на Electron: Vanilla, Fabric и Forge. Дизайн и глаз-компаньон из FARCIPAL EYE.
