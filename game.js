@@ -4,7 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const loaders = require("./loaders");
-const MIRROR = "https://bmclapi2.bangbang93.com";
 
 // @xmcl бывают и CJS, и ESM: динамический import работает в обоих случаях
 async function loadXmcl() {
@@ -64,19 +63,9 @@ async function installAndLaunch(opts, hooks, deps) {
   if ((loaderType === "forge" || loaderType === "fabric") && !loaderVersion) throw new Error(`Выбери версию ${loaderType === "forge" ? "Forge" : "Fabric"}`);
   fs.mkdirSync(gameDir, { recursive: true });
 
-    const ensureDeps = async (id, label) => {
+  const ensureDeps = async (id, label) => {
     const resolved = await core.Version.parse(gameDir, id);
-    
-    // ВОТ ТУТ ДОБАВЛЯЕМ ЗЕРКАЛО ДЛЯ БИБЛИОТЕК:
-    await runTask(
-      inst.installDependenciesTask && inst.installDependenciesTask(resolved, {
-        assetsHost: `${MIRROR}/assets`,
-        libraryHost: (lib) => `${MIRROR}/maven/${lib.groupId.replace(/\./g, "/")}/${lib.artifactId}/${lib.version}/${lib.artifactId}-${lib.version}.jar`
-      }), 
-      () => inst.installDependencies(resolved), 
-      label, 
-      hooks
-    );
+    await runTask(inst.installDependenciesTask && inst.installDependenciesTask(resolved), () => inst.installDependencies(resolved), label, hooks);
     return resolved;
   };
 
@@ -87,15 +76,7 @@ async function installAndLaunch(opts, hooks, deps) {
     const list = await inst.getVersionList();
     const meta = list.versions.find((v) => v.id === mcVersion);
     if (!meta) throw new Error(`Версия ${mcVersion} не найдена в манифесте Mojang`);
-    await runTask(
-      inst.installTask && inst.installTask(meta, gameDir, {
-        assetsHost: `${MIRROR}/assets`,
-        libraryHost: (lib) => `${MIRROR}/maven/${lib.groupId.replace(/\./g, "/")}/${lib.artifactId}/${lib.version}/${lib.artifactId}-${lib.version}.jar`
-      }),
-      () => inst.install(meta, gameDir),
-      "Minecraft " + mcVersion,
-      hooks
-    );
+    await runTask(inst.installTask && inst.installTask(meta, gameDir), () => inst.install(meta, gameDir), "Minecraft " + mcVersion, hooks);
   }
   const base = await ensureDeps(mcVersion, "файлы " + mcVersion);       // докачает недостающее и битое, лишнего не трогает
 
