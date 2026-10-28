@@ -71,7 +71,7 @@
   <span>Версия загрузчика</span>
   <select id="loaderVer"><option value="">—</option></select>
 </label>
-      <label class="field">
+      <label class="field" id="ramSettings">
         <div class="ram-header">
           <span>Память RAM </span>
           <output id="ramOut">4 ГБ</output>
@@ -84,6 +84,14 @@
         </div>
       </label>
       <label class="check" id="joinWrap"><input id="join" type="checkbox"> Заходить на сервер сразу</label>
+            <!-- Блок FARCOP, скрытый по умолчанию -->
+      <div id="farcopSettings" class="farcop-block">
+        <label class="check" style="margin-top: 10px;">
+          <input id="companionToggle" type="checkbox" checked> 
+          FARCOP
+        </label>
+        <p class="ram-hint" style="margin-top: 4px;">Скрыть или показать</p>
+      </div>
     </aside>
 
     <section class="core" aria-label="Запуск">

@@ -10,8 +10,8 @@
   const ram = $("ram"), ramOut = $("ramOut"), snap = $("snap"), join = $("join");
   const avatar = $("avatar"), pname = $("pname"), psub = $("psub"), nickWrap = $("nickWrap");
   const loader = $("loader"), loaderVer = $("loaderVer"), loaderVerWrap = $("loaderVerWrap");
-
-  C.init({ play, progress, shake: $("shake"), targets: ".panel, .card, .play" });
+  const companionToggle = $("companionToggle");
+  C.init({ play, progress, shake: $("shake"), targets: ".panel, .card, .play, .tab, .brand"});
 
   // ---------- часы ----------
   const tick = () => { const d = new Date(); $("clock").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
@@ -66,12 +66,17 @@
   const settings = await L.settings.get();
   ram.value = settings.memory; ramOut.textContent = `${settings.memory} ГБ`;
   snap.checked = settings.snapshots; join.checked = settings.joinServer;
+    // Восстанавливаем состояние FARCOP
+  const isCompanionEnabled = settings.companion !== false; // По умолчанию true
+  companionToggle.checked = isCompanionEnabled;
+  C.setVisible(isCompanionEnabled);
   q.value = settings.demoName || "";
   loader.value = settings.loaderType || "vanilla";
   let wantLoaderVer = settings.loaderVersion || "";
   const save = () => L.settings.set({
     memory: Number(ram.value), version: ver.value, snapshots: snap.checked,
-    joinServer: join.checked, demoName: q.value.trim(), loaderType: loader.value, loaderVersion: loaderVer.value
+    joinServer: join.checked, demoName: q.value.trim(), loaderType: loader.value, loaderVersion: loaderVer.value,
+    companion: companionToggle.checked
   });
   ram.addEventListener("input", () => { ramOut.textContent = `${ram.value} ГБ`; });
   ram.addEventListener("change", save);
@@ -83,6 +88,10 @@
   q.addEventListener("blur", save);
   q.addEventListener("input", renderProfile);
   q.addEventListener("keydown", (e) => { if (e.key === "Enter") play.click(); });
+    companionToggle.addEventListener("change", () => {
+    save();
+    C.setVisible(companionToggle.checked);
+  });
 
   
 

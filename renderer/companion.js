@@ -22,6 +22,9 @@
   const angDiff = (a, b) => ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
   const angLerp = (a, b, t) => a + angDiff(a, b) * t;
   const f1 = (v) => v.toFixed(1);
+  let born = 0;
+  let isHidden = false;
+  let INTRO_DURATION = 6000;
 
   const COLORS = { green: [61, 207, 111], amber: [232, 180, 90], red: [248, 113, 113] };
   const NRT = 8, NRP = 10;
@@ -307,7 +310,7 @@
   // ---------- рывок ----------
   function slam() {
     return new Promise((res) => {
-      if (!btnRect || mode === "slam" || mode === "recoil") { res(); return; }
+      if (isHidden || !btnRect || mode === "slam" || mode === "recoil") { res(); return; }
       const r = { ...btnRect };
       const I = { x: clamp(eye.x, r.left + r.width * 0.22, r.right - r.width * 0.12), y: r.top + r.height * 0.1 };
       let dx = eye.x - I.x, dy = eye.y - I.y, d = Math.hypot(dx, dy);
@@ -391,6 +394,7 @@
   // ---------- кадр ----------
   function frame(now) {
     requestAnimationFrame(frame);
+    if (isHidden) return; // <--- Если скрыт, ничего не рисуем
     let dt = (now - last) / 1000; last = now;
     if (dt <= 0) return;
     dt = Math.min(dt, 0.033); time += dt;
@@ -401,37 +405,52 @@
     let lid = 1, px = 0.8, py = 1.12, sc = 1, spin = 1, vis = 1, col = COLORS.green, tintT = 0;
     let gazeAt = { x: mouse.x, y: mouse.y };
     let pin = false;
-
-    if (mode === "follow") {
-      const T = lastWant === "cap" ? { x: clamp(capPerch.x, R + 10, W - R - 10), y: clamp(capPerch.y, R + 60, H - R - 10) } : followTarget();
-      spring(T.x + bob.x * 0.6 + pullVec.x, T.y + bob.y * 0.6 + pullVec.y, 24, 0.75, dt);
-    } else if (mode === "hover") {
-      const T = hoverSpot(); spring(T.x + bob.x * 0.4 - pullAmt * 3, T.y + bob.y * 0.4 + pullAmt * 9, 40, 0.7, dt);
-      px = 0.4; py = 1.22; lid = 0.93; pin = true;
-    } else if (mode === "slam") {
-      stepSlam(now); px = 0.3; py = 1.25; lid = 0.88; pin = true;
-      if (btnRect) gazeAt = { x: (btnRect.left + btnRect.right) / 2, y: (btnRect.top + btnRect.bottom) / 2 };
-    } else if (mode === "recoil") {
-      spring(recoilTarget.x, recoilTarget.y, 70, 0.5, dt); px = 0.7; py = 1.1;
-      if (now - recoilT0 > 420) mode = "follow";
-    } else if (mode === "loading") {
-      col = COLORS.amber; sc = 0.62; px = 0.82; py = 0.88; spin = 3; tintT = 0.1;
-      if (progRect) {
-        orbitA += dt * 2.2;
-        const cx = progRect.left + progRect.width / 2, cy = progRect.top + progRect.height / 2 + 6;
-        const rx = Math.min(progRect.width / 2 + 56, W / 2 - 90), ry = 44;
-        spring(cx + Math.cos(orbitA) * rx, cy + Math.sin(orbitA) * ry, 90, 0.8, dt);
-        gazeAt = { x: cx, y: cy };
-      }
-    } else if (mode === "error") {
-      col = COLORS.red; px = 0.5; py = 1.1; lid = 0.7; spin = 0.4; tintT = 0.22;
-      spring(errTarget.x, errTarget.y, 30, 0.45, dt);
-      if (btnRect) gazeAt = { x: (btnRect.left + btnRect.right) / 2, y: (btnRect.top + btnRect.bottom) / 2 };
-      if (now - errT0 > 2300) mode = "follow";
-    } else if (mode === "sleep") {
-      const T = home(); spring(T.x + bob.x * 0.5, T.y + bob.y * 0.6, 7, 0.9, dt);
-      lid = 0.09; px = 1.35; py = 1.35; spin = 0.15; vis = 0.65;
-      gazeAt = { x: eye.x, y: eye.y + 80 };
+        // --- ЗАСТАВЛЯЕМ ГЛАЗ БЫТЬ ЗАКРЫТЫМ В НАЧАЛЕ ---
+        // --- ЛОГИКА ПОЯВЛЕНИЯ ---
+    const introT = Math.min(1, (now - born) / INTRO_DURATION);
+    
+    if (introT < 1) {
+        // Пока глаз появляется, он висит ровно по центру экрана (или над кнопкой)
+        // и не пытается лететь за мышкой.
+        eye.x = W / 2;
+        eye.y = btnRect ? Math.max(130, btnRect.top - 150) : H * 0.3;
+        eye.vx = 0;
+        eye.vy = 0;
+        vis = 0;
+        lid = introT < 0.6 ? 0.05 : 1; // Закрыт первые 60% времени
+    } else {
+        // Обычная логика (когда глаз уже вырос)
+        if (mode === "follow") {
+            const T = lastWant === "cap" ? { x: clamp(capPerch.x, R + 10, W - R - 10), y: clamp(capPerch.y, R + 60, H - R - 10) } : followTarget();
+            spring(T.x + bob.x * 0.6 + pullVec.x, T.y + bob.y * 0.6 + pullVec.y, 24, 0.75, dt);
+        } else if (mode === "hover") {
+            const T = hoverSpot(); spring(T.x + bob.x * 0.4 - pullAmt * 3, T.y + bob.y * 0.4 + pullAmt * 9, 40, 0.7, dt);
+            px = 0.4; py = 1.22; lid = 0.93; pin = true;
+        } else if (mode === "slam") {
+            stepSlam(now); px = 0.3; py = 1.25; lid = 0.88; pin = true;
+            if (btnRect) gazeAt = { x: (btnRect.left + btnRect.right) / 2, y: (btnRect.top + btnRect.bottom) / 2 };
+        } else if (mode === "recoil") {
+            spring(recoilTarget.x, recoilTarget.y, 70, 0.5, dt); px = 0.7; py = 1.1;
+            if (now - recoilT0 > 420) mode = "follow";
+        } else if (mode === "loading") {
+            col = COLORS.amber; sc = 0.62; px = 0.82; py = 0.88; spin = 3; tintT = 0.1;
+            if (progRect) {
+                orbitA += dt * 2.2;
+                const cx = progRect.left + progRect.width / 2, cy = progRect.top + progRect.height / 2 + 6;
+                const rx = Math.min(progRect.width / 2 + 56, W / 2 - 90), ry = 44;
+                spring(cx + Math.cos(orbitA) * rx, cy + Math.sin(orbitA) * ry, 90, 0.8, dt);
+                gazeAt = { x: cx, y: cy };
+            }
+        } else if (mode === "error") {
+            col = COLORS.red; px = 0.5; py = 1.1; lid = 0.7; spin = 0.4; tintT = 0.22;
+            spring(errTarget.x, errTarget.y, 30, 0.45, dt);
+            if (btnRect) gazeAt = { x: (btnRect.left + btnRect.right) / 2, y: (btnRect.top + btnRect.bottom) / 2 };
+            if (now - errT0 > 2300) mode = "follow";
+        } else if (mode === "sleep") {
+            const T = home(); spring(T.x + bob.x * 0.5, T.y + bob.y * 0.6, 7, 0.9, dt);
+            lid = 0.09; px = 1.35; py = 1.35; spin = 0.15; vis = 0.65;
+            gazeAt = { x: eye.x, y: eye.y + 80 };
+        }
     }
 
     pinT = pin ? Math.min(1, pinT + dt * 2.2) : 0;
@@ -963,6 +982,20 @@
   function draw(now) {
     // --- тело ---
     const sc = cur.sc, sx = 1 - 0.24 * sqz, sy = 1 + 0.16 * sqz;
+         // --- ЭФФЕКТ КРАСИВОГО ПОЯВЛЕНИЯ (ПРОБУЖДЕНИЯ) ---
+    
+    const introT = Math.min(1, (now - born) / INTRO_DURATION); 
+    
+    const introEase = 1 - Math.pow(1 - introT, 4); 
+    
+    // Масштаб: глаз вылетает из точки
+    const finalSc = sc * (0.1 + 0.9 * introEase);
+    
+    // Если анимация еще идет, принудительно закрываем веки в начале
+    if (now - born < INTRO_DURATION && introT > 0.6 && introT < 0.65) {
+        flash = Math.max(flash, 0.6);
+    }
+
     let jx = 0, jy = 0;
     if (mode === "error") { const a = Math.max(0, 1 - (now - errT0) / 1300) * 7; jx = rnd(-a, a); jy = rnd(-a, a); }
     // дыхание и пульс: тело живёт, а не стоит как наклейка
@@ -970,7 +1003,7 @@
     const bx = 1 + 0.012 * Math.sin(time * 1.6) + hb, by = 1 + 0.012 * Math.sin(time * 1.6 + 1.4) + hb;
     eyeEl.style.transform =
       `translate3d(${f1(eye.x + jx - HALF)}px,${f1(eye.y + jy - HALF)}px,0) rotate(${(tilt + Math.sin(time * 0.7) * 0.8).toFixed(2)}deg) ` +
-      `rotate(${sqzAng.toFixed(3)}rad) scale(${(sx * sc * bx).toFixed(3)},${(sy * sc * by).toFixed(3)}) rotate(${(-sqzAng).toFixed(3)}rad)`;
+      `rotate(${sqzAng.toFixed(3)}rad) scale(${(sx * finalSc * bx).toFixed(3)},${(sy * finalSc * by).toFixed(3)}) rotate(${(-sqzAng).toFixed(3)}rad)`;
     svP[0].setAttribute("stroke-dashoffset", (-time * 30).toFixed(1)); svP[1].setAttribute("stroke-dashoffset", (-time * 41).toFixed(1)); svP[2].setAttribute("stroke-dashoffset", (-time * 24).toFixed(1));
     // текстура белка едет вместе с радужкой: яблоко поворачивается, пустых мест не остаётся
     ballEl.style.transform = `translate(${f1(cur.gx * 27 * UNIT)}px,${f1(cur.gy * 27 * UNIT)}px)`;
@@ -1061,6 +1094,7 @@
       }
       readRects();
       const h = home(); eye.x = h.x; eye.y = h.y; resetThreads();
+      born = performance.now();
       last = performance.now();
       requestAnimationFrame(frame);
     },
@@ -1071,6 +1105,19 @@
       else if (name === "running") { wantLoading = false; running = true; flash = 0.7; ring(); if (mode !== "slam" && mode !== "recoil") mode = "follow"; }
       else if (name === "error") fail();
       else { wantLoading = false; running = false; mouse.lastMove = performance.now(); }
+    },
+        setVisible(v) {
+      isHidden = !v;
+      const layer = document.getElementById("eyeLayer");
+      if (isHidden) {
+        if (layer) layer.style.display = "none";
+        // Очищаем экран от паутины, чтобы она не зависла
+        if (ctxW) ctxW.clearRect(0, 0, W, H);
+        if (ctxF) ctxF.clearRect(0, 0, W, H);
+      } else {
+        if (layer) layer.style.display = "block";
+        last = performance.now(); // Важно! Сбрасываем таймер, чтобы глаз не дернулся при включении
+      }
     },
     _force(c) { forceLid = c; },
     _dbg() {

@@ -225,8 +225,17 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 .log .ok { color: var(--green); }
 .log .err { color: var(--red); }
 @keyframes fade { to { opacity: 1; } }
-.log::-webkit-scrollbar, .side::-webkit-scrollbar, .profile::-webkit-scrollbar { width: 6px; }
-.log::-webkit-scrollbar-thumb, .side::-webkit-scrollbar-thumb, .profile::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 3px; }
+/* Скрываем скроллбары, но оставляем возможность прокрутки */
+.profile::-webkit-scrollbar,
+.side::-webkit-scrollbar,
+.log::-webkit-scrollbar {
+  display: none;
+}
+
+.profile, .side, .log {
+  scrollbar-width: none; /* Для Firefox */
+  -ms-overflow-style: none; /* Для IE и Edge */
+}
 
 /* ---------- слои глаза и паутины ---------- */
 #web, #fx { position: fixed; left: 0; top: 0; pointer-events: none; }
@@ -254,9 +263,12 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
   padding: 4px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  margin-right: 10px;
+
   -webkit-app-region: no-drag;
-  position: relative; 
+  position: absolute; 
+  left: 50%;
+  transform: translateX(-50%);
+  top: 16 px;
 }
 .tab-indicator {
   position: absolute;
@@ -299,7 +311,7 @@ body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: ant
 }
 
 /* --- ЛОГИКА ЭКРАНОВ ПРИ ПЕРЕКЛЮЧЕНИИ --- */
-/* Когда открыты НАСТРОЙКИ, прячем всё лишнее и центрируем панель */
+
 body[data-mode="settings"] .core,
 body[data-mode="settings"] .side,
 body[data-mode="settings"] .term {
@@ -307,7 +319,8 @@ body[data-mode="settings"] .term {
 }
 
 body[data-mode="settings"] .stage {
-  grid-template-columns: 1fr; /* Делаем одну колонку на весь экран */
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr; 
 }
 
 body[data-mode="settings"] .profile {
@@ -315,7 +328,10 @@ body[data-mode="settings"] .profile {
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
-  justify-content: center; /* Центрируем содержимое по вертикали */
+  justify-content: flex-start;
+  padding-top: 30px; 
+  height: 100;
+  padding-bottom: 30px;
 }
 
 /* Когда открыт МАГАЗИН, прячем вообще всё (пока там пусто) */
@@ -325,4 +341,18 @@ body[data-mode="store"] .term,
 body[data-mode="store"] .profile {
   display: none !important;
 }
+/* Скрываем блок FARCOP везде, кроме вкладки Настройки */
+body:not([data-mode="settings"]) #farcopSettings {
+  display: none !important;
+}
 
+/* Стили для самого блока, чтобы он красиво отделился */
+.farcop-block {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+/* Прячем ползунок памяти на вкладке "Играть" */
+body:not([data-mode="settings"]) #ramSettings {
+  display: none !important;
+}
