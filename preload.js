@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("launcher", {
   config: () => ipcRenderer.invoke("config:get"),
   versions: () => ipcRenderer.invoke("versions:list"),
+  loaderGames: (type) => ipcRenderer.invoke("loader:games", type),
+  loaderVersions: (type, mc) => ipcRenderer.invoke("loader:versions", { type, mc }),
   session: () => ipcRenderer.invoke("auth:session"),
   login: () => ipcRenderer.invoke("auth:microsoft"),
   logout: () => ipcRenderer.invoke("auth:logout"),

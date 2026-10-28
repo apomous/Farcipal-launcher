@@ -9,6 +9,7 @@
   const logEl = $("log"), cardsEl = $("cards"), hint = $("hint");
   const ram = $("ram"), ramOut = $("ramOut"), snap = $("snap"), join = $("join");
   const avatar = $("avatar"), pname = $("pname"), psub = $("psub"), nickWrap = $("nickWrap");
+  const loader = $("loader"), loaderVer = $("loaderVer"), loaderVerWrap = $("loaderVerWrap");
 
   C.init({ play, progress, shake: $("shake"), targets: ".panel, .card, .play" });
 
@@ -53,7 +54,7 @@
     play.disabled = false; // <--- ИСПРАВЛЕНО: теперь кнопка всегда кликабельна
     play.setAttribute("aria-busy", s === "loading" ? "true" : "false");
     
-    [ver, snap].forEach((el) => { el.disabled = s === "loading" || s === "running"; });
+    [ver, snap, loader, loaderVer].forEach((el) => { el.disabled = s === "loading" || s === "running"; });
     acct.disabled = s === "loading" || s === "running";
     
     // Глаз реагирует на наведение только когда мы в меню или ошибке
@@ -66,18 +67,24 @@
   ram.value = settings.memory; ramOut.textContent = `${settings.memory} ГБ`;
   snap.checked = settings.snapshots; join.checked = settings.joinServer;
   q.value = settings.demoName || "";
+  loader.value = settings.loaderType || "vanilla";
+  let wantLoaderVer = settings.loaderVersion || "";
   const save = () => L.settings.set({
     memory: Number(ram.value), version: ver.value, snapshots: snap.checked,
-    joinServer: join.checked, demoName: q.value.trim()
+    joinServer: join.checked, demoName: q.value.trim(), loaderType: loader.value, loaderVersion: loaderVer.value
   });
   ram.addEventListener("input", () => { ramOut.textContent = `${ram.value} ГБ`; });
   ram.addEventListener("change", save);
   join.addEventListener("change", save);
-  ver.addEventListener("change", save);
+  ver.addEventListener("change", () => { save(); fillLoaderVersions(); });
+  loader.addEventListener("change", () => { save(); refreshLoader(); });
+  loaderVer.addEventListener("change", () => { wantLoaderVer = loaderVer.value; save(); });
   snap.addEventListener("change", () => { save(); fillVersions(); });
   q.addEventListener("blur", save);
   q.addEventListener("input", renderProfile);
   q.addEventListener("keydown", (e) => { if (e.key === "Enter") play.click(); });
+
+  
 
   // ---------- конфиг и карточки ----------
   const cfg = await L.config();
@@ -104,15 +111,16 @@
   cardsEl.appendChild(card("#6d7288", "Папка игры", cfg.gameDir, "", []));
 
   // ---------- версии ----------
-  let manifest = null;
-  function fillVersions() {
-    if (!manifest) return;
-    const keep = ver.value || settings.version;
-    ver.textContent = "";
-    manifest.versions
-      .filter((v) => v.type === "release" || (snap.checked && v.type === "snapshot"))
-      .forEach((v) => { const o = document.createElement("option"); o.value = v.id; o.textContent = v.id; ver.appendChild(o); });
-    ver.value = [...ver.options].some((o) => o.value === keep) ? keep : manifest.latest.release;
+  let manifest = null, supported = null;   // supported: версии игры, которые умеет загрузчик (null = Vanilla)
+function fillVersions() {
+  if (!manifest) return;
+  const keep = ver.value || settings.version;
+  ver.textContent = "";
+  manifest.versions
+    .filter((v) => supported ? supported.has(v.id) : (v.type === "release" || (snap.checked && v.type === "snapshot")))
+    .forEach((v) => { const o = document.createElement("option"); o.value = v.id; o.textContent = v.id; ver.appendChild(o); });
+  const has = (id) => [...ver.options].some((o) => o.value === id);
+  ver.value = has(keep) ? keep : has(manifest.latest.release) ? manifest.latest.release : (ver.options[0] ? ver.options[0].value : "");
   }
   try {
     log("загружаю список версий");
@@ -123,6 +131,49 @@
     log("список версий недоступен: " + e.message, "err");
     showHint("Нет связи с серверами Mojang. Проверь интернет и перезапусти лаунчер.");
   }
+  const gamesCache = {};
+let loaderReq = 0;                       // защита от устаревших ответов при быстром переключении
+const addOpt = (sel, value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; sel.appendChild(o); };
+
+async function fillLoaderVersions() {
+  const type = loader.value;
+  loaderVerWrap.hidden = type === "vanilla";
+  if (type === "vanilla" || !ver.value) return;
+  const my = ++loaderReq, mc = ver.value;
+  loaderVer.textContent = ""; addOpt(loaderVer, "", "загрузка…"); loaderVer.disabled = true;
+  try {
+    const { items, recommended } = await L.loaderVersions(type, mc);
+    if (my !== loaderReq) return;
+    loaderVer.textContent = "";
+    if (!items.length) { addOpt(loaderVer, "", `нет версий для ${mc}`); return; }
+    items.forEach((it) => addOpt(loaderVer, it.id, it.label));
+    loaderVer.value = items.some((i) => i.id === wantLoaderVer) ? wantLoaderVer : (recommended || items[0].id);
+    wantLoaderVer = loaderVer.value;
+    loaderVer.disabled = uiState === "loading" || uiState === "running";
+    save();
+  } catch (e) {
+    if (my !== loaderReq) return;
+    loaderVer.textContent = ""; addOpt(loaderVer, "", "недоступно");
+    log("версии загрузчика недоступны: " + e.message, "err");
+  }
+}
+async function refreshLoader() {
+  const type = loader.value;
+  snap.closest("label").hidden = type !== "vanilla";
+  if (type === "vanilla") { supported = null; loaderVerWrap.hidden = true; fillVersions(); return; }
+  const my = ++loaderReq;
+  try {
+    if (!gamesCache[type]) gamesCache[type] = new Set(await L.loaderGames(type));
+    if (my !== loaderReq) return;
+    supported = gamesCache[type]; fillVersions();
+  } catch (e) {
+    log("список версий для загрузчика недоступен: " + e.message, "err");
+    showHint("Не удалось получить версии " + (type === "forge" ? "Forge" : "Fabric") + ". Проверь интернет.");
+    return;
+  }
+  await fillLoaderVersions();
+}
+await refreshLoader();
 
   // ---------- аккаунт и профиль ----------
   let account = null;
@@ -168,12 +219,13 @@
       return;
     } 
         if (starting) return;
+    if (loader.value !== "vanilla" && !loaderVer.value) { showHint("Выбери версию загрузчика"); return; }
     starting = true;
     save(); showHint("");
     await C.slam();                       // глаз врезается в кнопку, дальше только загрузка
     const res = await L.play({
       version: ver.value, memory: Number(ram.value), joinServer: join.checked,
-      mode: account ? "microsoft" : "demo", name: q.value
+      mode: account ? "microsoft" : "demo", name: q.value,loaderType: loader.value, loaderVersion: loaderVer.value
     });
     starting = false;
     if (!res.ok) {
@@ -202,9 +254,10 @@
 
   let lastProg = 0;
   L.on("game:progress", (p) => {
-    const now = performance.now();
-    statusText.textContent = `${p.type}: ${p.task}/${p.total}`;
-    if (now - lastProg > 700 || p.task === p.total) { log(`${p.type} ${p.task}/${p.total}`); lastProg = now; }
+    const now = performance.now(); 
+    const txt = p.total > 1 ? `${p.type}: ${p.task}/${p.total} МБ` : p.type;
+    statusText.textContent = txt;
+    if (now - lastProg > 700 || (p.total > 1 && p.task === p.total)) { log(txt); lastProg = now; }
   });
   L.on("game:log", ({ text, game }) => {
     if (text && (game || /error|fail|ошиб/i.test(text))) log(text.slice(0, 160), /error|fail/i.test(text) ? "err" : "");

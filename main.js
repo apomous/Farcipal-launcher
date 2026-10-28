@@ -1,18 +1,20 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { spawnSync } = require("child_process");
-const { Client, Authenticator } = require("minecraft-launcher-core");
+const crypto = require("crypto");
 const { Auth } = require("msmc");
 const config = require("./config");
+const loaders = require("./loaders");
+const { installAndLaunch } = require("./game");
 
 const MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 const gameDir = path.join(app.getPath("appData"), config.gameDirName);
 const settingsFile = path.join(app.getPath("userData"), "settings.json");
 const authFile = path.join(app.getPath("userData"), "auth.json");
+const launchLog = path.join(gameDir, "launcher-last.log");   // полный журнал последнего запуска: его можно прислать при проблемах
 
 let win = null;
-let game = null; // { client, proc }
+let game = null; // { proc } пока игра запускается или работает
 
 // ---------- файлы настроек ----------
 function readJson(file, fallback) {
@@ -22,7 +24,7 @@ function writeJson(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
-const defaults = { memory: 4, version: "", snapshots: false, joinServer: false, demoName: "" };
+const defaults = { memory: 4, version: "", snapshots: false, joinServer: false, demoName: "", loaderType: "vanilla", loaderVersion: "" };
 const getSettings = () => ({ ...defaults, ...readJson(settingsFile, {}) });
 
 // ---------- окно ----------
@@ -71,15 +73,27 @@ ipcMain.handle("settings:set", (_e, s) => {
   return next;
 });
 
-// ---------- список версий ----------
+// ---------- версии игры (Mojang) ----------
 ipcMain.handle("versions:list", async () => {
-  const res = await fetch(MANIFEST);
+  const res = await fetch(MANIFEST, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error("Манифест версий недоступен: HTTP " + res.status);
   const data = await res.json();
   return {
     latest: data.latest,
     versions: data.versions.map((v) => ({ id: v.id, type: v.type }))
   };
+});
+
+// ---------- загрузчики: какие версии игры поддерживаются и какие версии загрузчика доступны ----------
+ipcMain.handle("loader:games", async (_e, type) => {
+  if (type === "fabric") return loaders.fabricGames();
+  if (type === "forge") return loaders.forgeGames();
+  return [];
+});
+ipcMain.handle("loader:versions", async (_e, { type, mc }) => {
+  if (type === "fabric") return loaders.fabricLoaders(mc);
+  if (type === "forge") return loaders.forgeVersions(mc);
+  return { items: [], recommended: null };
 });
 
 // ---------- вход через Microsoft ----------
@@ -118,92 +132,78 @@ ipcMain.handle("auth:logout", () => {
   return true;
 });
 
-// ---------- Java ----------
-function javaVersion() {
-  const r = spawnSync("java", ["-version"], { encoding: "utf8" });
-  if (r.error) return null;
-  const m = /version "(\d+)(?:\.(\d+))?/.exec(r.stderr || r.stdout || "");
-  if (!m) return null;
-  return m[1] === "1" ? Number(m[2]) : Number(m[1]);
+// ---------- профиль для запуска ----------
+// стандартный offline-UUID Minecraft: md5("OfflinePlayer:<ник>") с версией 3
+function offlineUUID(name) {
+  const h = crypto.createHash("md5").update("OfflinePlayer:" + name).digest();
+  h[6] = (h[6] & 0x0f) | 0x30; h[8] = (h[8] & 0x3f) | 0x80;
+  const x = h.toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;
 }
 
-function neededJava(id) {
-  const m = /^(\d+)\.(\d+)(?:\.(\d+))?/.exec(id);
-  if (!m) return 21; // снапшоты и новые схемы версий
-  const minor = Number(m[2]), patch = Number(m[3] || 0);
-  if (minor >= 21 || (minor === 20 && patch >= 5)) return 21;
-  if (minor >= 18 || (minor === 17)) return 17;
-  return 8;
+function buildAuth(mode, name) {
+  if (mode === "microsoft") {
+    if (!mcToken) throw new Error("Сначала войди через Microsoft");
+    const a = mcToken.mclc();                       // { access_token, uuid, name, ... }
+    return {
+      profile: { id: a.uuid, name: a.name },
+      accessToken: a.access_token,
+      userType: "msa",
+      demo: !!(mcToken.profile && mcToken.profile.demo)   // аккаунт без купленной игры: демо-режим
+    };
+  }
+  // демо без аккаунта: флаг --demo, ограничение накладывает сам клиент Mojang
+  const nick = (name || "").trim();
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(nick)) throw new Error("Ник: 3–16 символов, латиница, цифры и _");
+  return { profile: { id: offlineUUID(nick), name: nick }, accessToken: "0", userType: "legacy", demo: false };
 }
 
-// ---------- запуск игры ----------
+// ---------- запуск ----------
 const send = (ch, data) => win && !win.isDestroyed() && win.webContents.send(ch, data);
 
 ipcMain.handle("game:play", async (_e, opts) => {
   if (game) return { ok: false, error: "Игра уже запущена" };
+  const { version, loaderType = "vanilla", loaderVersion = "", memory, mode, name, joinServer } = opts;
 
-  const { version, memory, mode, name, joinServer } = opts;
-  if (!version) return { ok: false, error: "Выбери версию" };
+  let auth;
+  try { auth = buildAuth(mode, name); } catch (e) { return { ok: false, error: e.message }; }
 
-  const need = neededJava(version);
-  const have = javaVersion();
-  if (!have) {
-    return { ok: false, error: `Не найдена Java. Для ${version} нужна Java ${need}+ (например, Temurin с adoptium.net)` };
-  }
-  if (have < need) {
-    return { ok: false, error: `Для ${version} нужна Java ${need}+, у тебя ${have}. Обнови Java` };
-  }
+  const log = (m) => { send("game:log", { text: String(m) }); try { fs.appendFileSync(launchLog, m + "\n"); } catch {} };
+  try { fs.mkdirSync(gameDir, { recursive: true }); fs.writeFileSync(launchLog, `# ${new Date().toISOString()} ${version} ${loaderType} ${loaderVersion}\n`); } catch {}
 
-  let authorization;
-  const extraArgs = [];
-  if (mode === "microsoft") {
-    if (!mcToken) return { ok: false, error: "Сначала войди через Microsoft" };
-    authorization = mcToken.mclc();
-    if (mcToken.profile && mcToken.profile.demo) extraArgs.push("--demo"); // аккаунт без купленной игры
-  } else {
-    // Демо-режим: клиент сам ограничивает игру (флаг --demo), это функция Mojang
-    const nick = (name || "").trim();
-    if (!/^[A-Za-z0-9_]{3,16}$/.test(nick)) {
-      return { ok: false, error: "Ник: 3–16 символов, латиница, цифры и _" };
-    }
-    authorization = Authenticator.getAuth(nick);
-    //extraArgs.push("--demo");
-  }
-
-  const client = new Client();
-  const launchOpts = {
-    authorization,
-    root: gameDir,
-    version: { number: version, type: /^\d+\.\d+(\.\d+)?$/.test(version) ? "release" : "snapshot" },
-    memory: { max: `${Math.max(1, Math.min(32, memory || 4))}G`, min: "1G" },
-    customLaunchArgs: extraArgs
-  };
-  if (joinServer && config.server.host) {
-    launchOpts.server = { host: config.server.host, port: String(config.server.port || 25565) };
-  }
-
-  client.on("debug", (m) => send("game:log", { text: String(m) }));
-  client.on("data", (m) => send("game:log", { text: String(m).trim(), game: true }));
-  client.on("progress", (p) => send("game:progress", p));
-  client.on("close", (code) => {
-    game = null;
-    send("game:state", { state: code === 0 ? "stopped" : "error", code });
-  });
-
-  game = { client, proc: null };
-  send("game:state", { state: "loading" });
+  game = { proc: null };                                // занимаем слот: двойной запуск невозможен
   try {
-    const proc = await client.launch(launchOpts);
-    if (!proc) {
-      game = null;
-      return { ok: false, error: "Запуск не удался, смотри журнал" };
-    }
+    const { proc, versionId } = await installAndLaunch(
+      {
+        gameDir, mcVersion: version, loaderType, loaderVersion, memoryGB: memory, auth,
+        server: joinServer && config.server.host ? { host: config.server.host, port: config.server.port } : null
+      },
+      { log, progress: (p) => send("game:progress", p), state: (s) => send("game:state", { state: s }) }
+    );
     game.proc = proc;
+
+    const onLine = (chunk) => {
+      const t = String(chunk).replace(/\r/g, "").trimEnd();
+      if (!t) return;
+      try { fs.appendFileSync(launchLog, t + "\n"); } catch {}
+      for (const line of t.split("\n")) send("game:log", { text: line.slice(0, 200), game: true });
+    };
+    proc.stdout && proc.stdout.on("data", onLine);
+    proc.stderr && proc.stderr.on("data", onLine);
+    proc.on("error", (e) => { game = null; log("не удалось запустить Java: " + e.message); send("game:state", { state: "error", code: -1 }); });
+    proc.on("close", (code) => {
+      game = null;
+      const c = (code === null ? -1 : code) | 0;      // 4294967289 -> -7: показываем знаковое значение
+      send("game:state", { state: c === 0 ? "stopped" : "error", code: c });
+    });
     send("game:state", { state: "running" });
+    log(`версия ${versionId} запущена`);
     return { ok: true };
   } catch (e) {
     game = null;
-    return { ok: false, error: String(e && e.message ? e.message : e) };
+    const msg = (e && e.message) || String(e);
+    try { fs.appendFileSync(launchLog, "ОШИБКА: " + (e && e.stack || msg) + "\n"); } catch {}
+    return { ok: false, error: msg };
   }
 });
 

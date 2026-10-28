@@ -60,6 +60,18 @@
       </label>
       <label class="check"><input id="snap" type="checkbox"> Показывать снапшоты</label>
       <label class="field">
+       <span>Загрузчик</span>
+       <select id="loader">
+        <option value="vanilla">Vanilla</option>
+        <option value="fabric">Fabric</option>
+        <option value="forge">Forge</option>
+       </select>
+     </label>
+<label class="field" id="loaderVerWrap" hidden>
+  <span>Версия загрузчика</span>
+  <select id="loaderVer"><option value="">—</option></select>
+</label>
+      <label class="field">
         <div class="ram-header">
           <span>Память RAM </span>
           <output id="ramOut">4 ГБ</output>
