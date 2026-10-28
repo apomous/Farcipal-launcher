@@ -1,27 +1,55 @@
-<img width="512" height="512" alt="farcipal-icon-512" src="https://github.com/user-attachments/assets/8a39ea5f-5dff-476d-abb3-08031cadd0cf" />
-
 # FARCIPAL Launcher
 
-Лаунчер Minecraft Java на Electron. Дизайн и глаз-компаньон из FARCIPAL EYE.
+Лаунчер Minecraft Java на Electron: Vanilla, Fabric и Forge. Дизайн и глаз-компаньон из FARCIPAL EYE.
 
 ## Запуск
+
 ```
-npm install
-npm start          # открыть приложение
-npm run dist       # собрать portable .exe в папку dist/
+pnpm install       # или npm install, если у твоей версии @xmcl нет workspace-зависимостей
+pnpm start         # открыть приложение
+pnpm dist          # собрать portable .exe в dist/
 ```
-Нужна Java: 17+ для 1.18–1.20.4, 21+ для 1.20.5 и новее (например, Temurin с adoptium.net).
+
+Если `npm install` падает с `EUNSUPPORTEDPROTOCOL workspace:*`, ставь через pnpm: часть пакетов `@xmcl` публикуется с этим протоколом.
+
+## Java
+
+Нужная версия берётся из JSON выбранной версии игры, лаунчер сам скажет, если Java старая:
+
+| Версия игры | Java |
+| --- | --- |
+| 1.18 – 1.20.4 | 17+ |
+| 1.20.5 – 1.21.x | 21+ |
+| 26.x и новее | 25+ |
+
+Java ставится вручную (например, Temurin с adoptium.net). Для Forge она нужна и во время установки.
 
 ## Что внутри
-- `main.js`: окно, список версий Mojang, вход через Microsoft (msmc), запуск (minecraft-launcher-core).
-- `renderer/companion.js`: глаз, живая сеть нитей (класс `Thread`), рывок по кнопке. API: `Companion.slam()`, `Companion.phase('idle'|'loading'|'running'|'error')`.
-  Элементы, за которые цепляется сеть, задаются селектором в `app.js` (`targets: ".panel, .card, .play"`).
+
+- `main.js`: окно, IPC, вход через Microsoft (msmc), профиль для запуска.
+- `game.js`: `installAndLaunch`. Ваниль (база) → загрузчик → зависимости → запуск, через `@xmcl/core` и `@xmcl/installer`.
+- `loaders.js`: списки версий Fabric (Fabric Meta) и Forge (maven-metadata + promotions), установка профиля Fabric.
+- `preload.js`: безопасный мост между окном и `main.js`.
 - `config.js`: сервер для автозахода, новости, папка игры.
+- `renderer/`: интерфейс; `companion.js`: глаз и живая сеть нитей. API: `Companion.slam()`, `Companion.phase('idle'|'loading'|'running'|'error')`. Элементы, за которые цепляется сеть, задаются селектором в `app.js` (`targets: ".panel, .card, .play"`).
+- `build/`: иконка для `.exe`.
+
+## Загрузчики
+
+- **Vanilla**: чистая игра.
+- **Fabric**: профиль берётся с Fabric Meta и кладётся в `versions/`, библиотеки докачивает установщик.
+- **Forge**: `installForge`, версии 1.12 и новее. Повторный запуск ничего не ставит заново.
+
+В списке версий игры при выбранном загрузчике остаются только те, которые он поддерживает.
 
 ## Вход и демо
-Без входа игра запускается в демо-режиме Mojang (флаг `--demo`, ограничение накладывает сам клиент).
-С Microsoft-аккаунтом без купленной игры тоже запустится демо.
+
+Игровая папка: `%APPDATA%\.farcipal`. Журнал последнего запуска: `launcher-last.log` в ней же, его можно прислать при проблемах.
+
+Без входа игра запускается в демо-режиме Mojang (флаг `--demo`, ограничение накладывает сам клиент). С Microsoft-аккаунтом без купленной игры тоже запустится демо.
 
 ## Не сделано
-- Автоскачивание Java (сейчас только проверка версии и понятная ошибка).
-- Загрузка новостей с твоего сайта (сейчас список в `config.js`).
+
+- Автоскачивание Java.
+- Загрузка новостей с сайта (сейчас список в `config.js`).
+- NeoForge и Quilt, управление модами.
