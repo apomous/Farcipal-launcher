@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const loaders = require("./loaders");
+const { farcipalAgent } = require('./network');
 
 // @xmcl бывают и CJS, и ESM: динамический import работает в обоих случаях
 async function loadXmcl() {
@@ -63,9 +64,14 @@ async function installAndLaunch(opts, hooks, deps) {
   if ((loaderType === "forge" || loaderType === "fabric") && !loaderVersion) throw new Error(`Выбери версию ${loaderType === "forge" ? "Forge" : "Fabric"}`);
   fs.mkdirSync(gameDir, { recursive: true });
 
-  const ensureDeps = async (id, label) => {
+    const ensureDeps = async (id, label) => {
     const resolved = await core.Version.parse(gameDir, id);
-    await runTask(inst.installDependenciesTask && inst.installDependenciesTask(resolved), () => inst.installDependencies(resolved), label, hooks);
+    await runTask(
+      inst.installDependenciesTask && inst.installDependenciesTask(resolved, { agent: farcipalAgent }), 
+      () => inst.installDependencies(resolved, { agent: farcipalAgent }), 
+      label, 
+      hooks
+    );
     return resolved;
   };
 
@@ -76,9 +82,14 @@ async function installAndLaunch(opts, hooks, deps) {
     const list = await inst.getVersionList();
     const meta = list.versions.find((v) => v.id === mcVersion);
     if (!meta) throw new Error(`Версия ${mcVersion} не найдена в манифесте Mojang`);
-    await runTask(inst.installTask && inst.installTask(meta, gameDir), () => inst.install(meta, gameDir), "Minecraft " + mcVersion, hooks);
+    await runTask(
+      inst.installTask && inst.installTask(meta, gameDir, { agent: farcipalAgent }), 
+      () => inst.install(meta, gameDir, { agent: farcipalAgent }), 
+      "Minecraft " + mcVersion, 
+      hooks
+    );
   }
-  const base = await ensureDeps(mcVersion, "файлы " + mcVersion);       // докачает недостающее и битое, лишнего не трогает
+  const base = await ensureDeps(mcVersion, "файлы " + mcVersion);      // докачает недостающее и битое, лишнего не трогает
 
   // 2) нужная Java: берём из JSON версии, а не угадываем
   const need = (base.javaVersion && base.javaVersion.majorVersion) || fallbackJava(mcVersion), have = getJava(javaPath);
@@ -96,9 +107,14 @@ async function installAndLaunch(opts, hooks, deps) {
     else {
       hooks.log(`ставлю Forge ${loaderVersion}: установщик запускает Java, это может занять несколько минут`);
       hooks.progress({ type: "Forge", task: 0, total: 1 });
-      const r = await inst.installForge({ version: loaderVersion, mcversion: mcVersion }, gameDir, { java: javaPath });
+            const r = await inst.installForge(
+        { version: loaderVersion, mcversion: mcVersion }, 
+        gameDir, 
+        { java: javaPath, agent: farcipalAgent }
+      );
+      
       versionId = typeof r === "string" && r ? r : expected;
-      if (!exists(versionJson(gameDir, versionId))) {                  // подстраховка: ищем установленную папку Forge
+      if (!exists(versionJson(gameDir, versionId))) {                  
         const dir = path.join(gameDir, "versions");
         const found = fs.readdirSync(dir).find((d) => d.includes("forge") && d.includes(loaderVersion) && exists(versionJson(gameDir, d)));
         if (!found) throw new Error("Forge установился, но профиль версии не найден в " + dir);
@@ -107,6 +123,7 @@ async function installAndLaunch(opts, hooks, deps) {
     }
   }
   if (versionId !== mcVersion) await ensureDeps(versionId, "библиотеки загрузчика");
+      
 
   // 4) запуск
   hooks.log(`запускаю ${versionId}`);
